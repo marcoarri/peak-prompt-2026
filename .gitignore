@@ -11,12 +11,10 @@ Thumbs.db
 .idea/
 .vscode/
 
-# Large media / DEM — keep locally, do not push
+# Large media — keep locally, do not push
 assets/foto/
 assets/web/
 assets/audio/
-assets/dem/
-_qa/
 *.jpeg
 *.jpg
 *.png
@@ -24,8 +22,6 @@ _qa/
 *.webp
 *.avif
 *.heic
-*.tif
-*.tiff
 *.mov
 *.mp4
 *.m4a
