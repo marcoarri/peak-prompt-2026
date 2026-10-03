@@ -36,7 +36,6 @@ VIDEO_EXT = {".mov", ".mp4"}
 LOCAL_TZ = timezone(timedelta(hours=2))
 
 # Manual local-time overrides (hike day) — videos lacked usable container timestamps.
-# Date = GPX day. IMG_6944: 15:04 interpolated (9 times given for 10 clips).
 VIDEO_TIME_OVERRIDES = {
     "IMG_6878": "14:10",
     "IMG_6879": "14:12",
@@ -45,7 +44,6 @@ VIDEO_TIME_OVERRIDES = {
     "IMG_6933": "14:50",
     "IMG_6935": "14:56",
     "IMG_6943": "15:02",
-    "IMG_6944": "15:04",
     "IMG_6974": "15:26",
     "IMG_6979": "15:29",
 }

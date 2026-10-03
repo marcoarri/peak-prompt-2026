@@ -31,10 +31,13 @@ const REFORM_SCREEN_FRAC = 0.38;
 const EXIT_FADE_IN_START = REFORM_SCREEN_FRAC - 0.34; // crossfade with collapsing cloud
 const EXIT_HOLD_SPAN = 0.22; // extra coverFrac at full opacity after reform
 const EXIT_DISSOLVE_SPAN = 0.75; // same length as the original exit, linear
+const EXPLORE_FOV_DEG = 62;
 // Far clouds are oversized mist; they shrink to the photo footprint as they reform
-const CLOUD_FAR_SCALE = 5.1;
+const CLOUD_FAR_SCALE = 4.5;
 const CLOUD_NEAR_SCALE = 1;
 const CLOUD_FAR_SPREAD = 1.45;
+// Min explore gap between consecutive media (timeline padding — not path-based)
+const MIN_EXPLORE_GAP_M = 10;
 // Light GPS denoise only — keep real bends, just kill harsh spikes
 const PATH_SMOOTH_PASSES = 1;
 const PATH_SMOOTH_RADIUS = 2;
@@ -54,7 +57,7 @@ function projectFactory(track) {
     const y = (ele ?? ele0) - ele0;
     return new THREE.Vector3(x, y, z);
   }
-  return { toVec3, ele0 };
+  return { toVec3 };
 }
 
 function buildPath(track, toVec3) {
@@ -152,8 +155,7 @@ function loadTexture(url, loader, { forCloud = false } = {}) {
       url,
       (tex) => {
         if (forCloud) {
-          // Display-referred sampling for custom Points shader (no HW sRGB decode).
-          // MeshBasic pc plane uses a SRGBColorSpace clone — see buildMediaVisuals.
+          // Display-referred for custom Points shader (avoid HW sRGB decode)
           tex.colorSpace = THREE.NoColorSpace;
           tex.generateMipmaps = false;
           tex.minFilter = THREE.NearestFilter;
@@ -318,12 +320,14 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
   const _pSide = new THREE.Vector3();
   const _pUp = new THREE.Vector3();
   function writeFrame(realDist, pos, tan, side, up, useExploreCurve = true) {
+    // Sample on-path, then extend past the GPX end along the final tangent so
+    // padded explore slots near the summit don't all collapse onto one point.
+    const overshoot = Math.max(0, realDist - path.total);
     const d = THREE.MathUtils.clamp(realDist, 0, path.total);
     const curve = useExploreCurve ? exploreCurve : null;
     const curveLen = useExploreCurve ? exploreCurveLen : 0;
     if (curve && curveLen > 1e-3) {
       const u = THREE.MathUtils.clamp(d / path.total, 0, 1);
-      // Modest tangent blend — softens spikes without flattening bends
       const span = Math.min(0.02, 12 / curveLen);
       const u0 = Math.max(0, u - span);
       const u1 = Math.min(1, u + span);
@@ -339,6 +343,7 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
     }
     if (tan.lengthSq() < 1e-8) tan.set(0, 0, -1);
     tan.normalize();
+    if (overshoot > 0) pos.addScaledVector(tan, overshoot);
     side.crossVectors(tan, _worldUp);
     if (side.lengthSq() < 1e-8) side.set(1, 0, 0);
     side.normalize();
@@ -350,38 +355,31 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
     return Math.max(0, exploreDist - START_LEAD_M) / PATH_COMPRESS;
   }
 
-  // Place each photo at time-accurate path distance, offset off-center (no phone GPS)
+  // Place each media at time-accurate path distance, offset off-center
   const placements = media.map((item) => {
     const realDist = path.distanceAtTime(item.time);
     const naturalDist = realDist * PATH_COMPRESS + START_LEAD_M;
-    // Overview uses raw path; explore framing uses smoothed curve at runtime
     writeFrame(realDist, _pPos, _pTan, _pSide, _pUp, false);
-    const pos = _pPos.clone();
-    const tangent = _pTan.clone();
-    const side = _pSide.clone();
-
     const h1 = hash01(item.id + ":side");
     const h2 = hash01(item.id + ":mag");
     const lateral = (h1 < 0.5 ? -1 : 1) * (1.4 + h2 * 4.2); // 1.4–5.6 m off path
-    const yawJitter = (hash01(item.id + ":yaw") - 0.5) * 0.4; // radians
-
-    const world = pos
+    const yawJitter = (hash01(item.id + ":yaw") - 0.5) * 0.4;
+    const world = _pPos
       .clone()
-      .addScaledVector(side, lateral)
+      .addScaledVector(_pSide, lateral)
       .add(new THREE.Vector3(0, EYE_H * 0.85, 0));
-
-    return {
-      item,
-      dist: naturalDist,
-      naturalDist,
-      realDist,
-      world,
-      tangent,
-      side,
-      lateral,
-      yawJitter,
-    };
+    return { item, dist: naturalDist, naturalDist, world, lateral, yawJitter };
   });
+
+  // Enforce min explore gap so clustered shots each get a full animation window
+  {
+    let cursor = -Infinity;
+    for (const p of placements) {
+      const padded = Math.max(p.naturalDist, cursor + MIN_EXPLORE_GAP_M);
+      p.dist = padded;
+      cursor = padded;
+    }
+  }
 
   const exploreTotal = Math.max(
     path.total * PATH_COMPRESS + START_LEAD_M,
@@ -417,45 +415,13 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
   };
   controls.addEventListener("start", stopAuto);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 1));
-
-  // Wikiloc path line (ground-level polyline)
-  const pathCurve = new THREE.CatmullRomCurve3(
-    path.pts.map((p) => p.pos.clone()),
-    false,
-    "catmullrom",
-    0.05
-  );
-  const pathTube = new THREE.Mesh(
-    new THREE.TubeGeometry(pathCurve, Math.min(1200, path.pts.length * 2), 1.4, 6, false),
-    new THREE.MeshBasicMaterial({ color: 0x222222 })
-  );
-  pathTube.renderOrder = -10;
-  pathTube.visible = false; // hidden for now
-  scene.add(pathTube);
-
-  // Subtle start / end markers
-  const markGeo = new THREE.SphereGeometry(3.2, 16, 16);
-  const startMark = new THREE.Mesh(markGeo, new THREE.MeshBasicMaterial({ color: 0x1f6f5b }));
-  const endMark = new THREE.Mesh(markGeo, new THREE.MeshBasicMaterial({ color: 0x8b3a2f }));
-  startMark.position.copy(path.pts[0].pos).y += 1.2;
-  endMark.position.copy(path.pts[path.pts.length - 1].pos).y += 1.2;
-  scene.add(startMark, endMark);
-
   // Explore rig: fixed camera looking -Z; images move toward the viewer
   const exploreRoot = new THREE.Group();
   exploreRoot.visible = false;
   scene.add(exploreRoot);
 
-  const explorePathGeo = new THREE.BufferGeometry();
-  const explorePathLine = new THREE.Line(
-    explorePathGeo,
-    new THREE.LineBasicMaterial({ color: 0x222222 })
-  );
-  explorePathLine.visible = false;
-  exploreRoot.add(explorePathLine);
-
   const loader = new THREE.TextureLoader();
+  const cloudFogFar = Math.min(FOG_FAR_M, SHOW_AHEAD_M * 0.95);
   const cloudGeoCache = new Map(); // `${cols}x${rows}` → geometry
   function cloudGeoFor(cols, rows) {
     const w = Math.max(1, cols | 0);
@@ -519,27 +485,23 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
     const t = THREE.MathUtils.clamp(disp / Math.max(1e-3, DISP_MAX), 0, 1);
     mat.uniforms.uSize.value = spacing * (2.1 + t * 0.55);
     mat.uniforms.uSpread.value = spread;
-    // Match scene fog band; bias far entrance with explore ahead distance
-    const fogFar = Math.min(FOG_FAR_M, SHOW_AHEAD_M * 0.95);
-    const fogNear = FOG_NEAR_M;
-    mat.uniforms.uFogNear.value = fogNear;
-    mat.uniforms.uFogFar.value = fogFar;
+    mat.uniforms.uFogFar.value = cloudFogFar;
+    let fogNear = FOG_NEAR_M;
     // Extra wash when just entering the visible ahead window
-    if (ahead != null && ahead > fogNear) {
+    if (ahead != null && ahead > FOG_NEAR_M) {
       const enter = THREE.MathUtils.clamp(
-        (ahead - fogNear) / Math.max(1, fogFar - fogNear),
+        (ahead - FOG_NEAR_M) / Math.max(1, cloudFogFar - FOG_NEAR_M),
         0,
         1
       );
-      // Push effective fog so brand-new clouds read as mist first
-      mat.uniforms.uFogNear.value = THREE.MathUtils.lerp(fogNear, fogNear * 0.35, enter);
+      fogNear = THREE.MathUtils.lerp(FOG_NEAR_M, FOG_NEAR_M * 0.35, enter);
     }
+    mat.uniforms.uFogNear.value = fogNear;
     mat.uniformsNeedUpdate = true;
   }
 
   const overviewBillboards = [];
-  const exploreNodes = []; // { placement, plane, group, tex, aspect }
-  const pickables = [];
+  const exploreNodes = [];
   const planeGeoCache = new Map(); // aspect key → geometry
 
   let walkDist = 0;
@@ -614,17 +576,17 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
       if (isVideo && item.src) {
         video = makeVideoElement(item.src);
         await new Promise((resolve) => {
-          const done = () => resolve();
-          video.addEventListener("loadeddata", done, { once: true });
-          video.addEventListener("error", done, { once: true });
-          // Some browsers need an explicit load()
+          if (video.readyState >= 2) {
+            resolve();
+            return;
+          }
+          video.addEventListener("loadeddata", resolve, { once: true });
+          video.addEventListener("error", resolve, { once: true });
           try {
             video.load();
           } catch {
-            /* ignore */
+            resolve();
           }
-          // Fallback if already cached
-          if (video.readyState >= 2) resolve();
         });
         try {
           video.pause();
@@ -674,10 +636,8 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
       ov.userData.item = item;
       scene.add(ov);
       overviewBillboards.push(ov);
-      pickables.push(ov);
 
       const group = new THREE.Group();
-      // Real image / video — replaces point cloud when displacement finishes
       const hiMat = new THREE.MeshBasicMaterial({
         map: hiMap,
         color: hiMap ? 0xffffff : 0x888888,
@@ -695,22 +655,16 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
       exploreRoot.add(group);
       exploreNodes.push({
         placement,
-        plane: hiPlane,
         hiPlane,
         group,
-        tex,
         dissolveTex,
         video,
-        videoTex,
         videoPlaying: false,
         isVideo,
         cloudW,
         cloudH,
         aspect: clamped,
-        cardUrl,
-        cloudUrl,
       });
-      pickables.push(hiPlane);
     });
     await Promise.all(jobs);
   }
@@ -741,9 +695,6 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
     controls.target.copy(overviewCenter);
     controls.update();
     scene.fog = null;
-    pathTube.visible = false;
-    startMark.visible = false;
-    endMark.visible = false;
     exploreRoot.visible = false;
     for (const b of overviewBillboards) b.visible = true;
     for (const n of exploreNodes) n.group.visible = false;
@@ -752,7 +703,7 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
   function applyExploreCamera() {
     controls.enabled = false;
     controls.autoRotate = false;
-    camera.fov = 62;
+    camera.fov = EXPLORE_FOV_DEG;
     camera.near = 0.15;
     camera.far = 220;
     camera.updateProjectionMatrix();
@@ -761,9 +712,6 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
     camera.position.set(0, EYE_H, 0);
     camera.up.set(0, 1, 0);
     camera.lookAt(0, EYE_H, -10);
-    pathTube.visible = false;
-    startMark.visible = false;
-    endMark.visible = false;
     for (const b of overviewBillboards) b.visible = false;
     // Layout first so cards don't pop/reshuffle on the first visible frame
     exploreRoot.visible = false;
@@ -907,10 +855,9 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
       const reformT = reformAmount(coverFrac);
       // Fog opacity (0 far/fogged → 1 clear). Disp peaks at full opacity, then
       // collapses to 0 as the image reforms — driven by camera distance/cover.
-      const fogFar = Math.min(FOG_FAR_M, SHOW_AHEAD_M * 0.95);
       // 1 = fully fogged (far), 0 = clear — same band as shader entrance fog
       const fogT = THREE.MathUtils.clamp(
-        (viewDepth - FOG_NEAR_M) / Math.max(1e-3, fogFar - FOG_NEAR_M),
+        (viewDepth - FOG_NEAR_M) / Math.max(1e-3, cloudFogFar - FOG_NEAR_M),
         0,
         1
       );
@@ -1149,11 +1096,24 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
         disp: +s.mat.uniforms.uDisp.value.toFixed(2),
         pos: s.pts.position.toArray().map((v) => +v.toFixed(2)),
       }));
+    const tight = placements
+      .slice(0, -1)
+      .map((p, i) => ({
+        a: p.item.id,
+        b: placements[i + 1].item.id,
+        natural: +(placements[i + 1].naturalDist - p.naturalDist).toFixed(2),
+        padded: +(placements[i + 1].dist - p.dist).toFixed(2),
+      }))
+      .filter((g) => g.natural < MIN_EXPLORE_GAP_M)
+      .slice(0, 20);
     return {
       mode,
       walkDist,
       exploreTotal,
       compress: PATH_COMPRESS,
+      minGap: +MIN_EXPLORE_GAP_M.toFixed(2),
+      paddedPairs: tight.length,
+      tightSample: tight,
       clouds,
       nodes: exploreNodes.length,
       firstDist: placements[0]?.dist ?? null,
@@ -1168,11 +1128,23 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
     getPointMul: () => pointMul,
     dispose() {
       cancelAnimationFrame(raf);
+      if (layoutRaf) cancelAnimationFrame(layoutRaf);
       ro.disconnect();
-      renderer.domElement.removeEventListener("wheel", onWheel);
+      const el = renderer.domElement;
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("pointermove", onPointerMove);
+      el.removeEventListener("pointerdown", onPointerDown);
+      el.removeEventListener("click", onClick);
+      for (const n of exploreNodes) {
+        stopNodeVideo(n);
+        if (n.video) {
+          n.video.removeAttribute("src");
+          n.video.load();
+        }
+      }
       controls.dispose();
       renderer.dispose();
-      renderer.domElement.remove();
+      el.remove();
     },
   };
 }
