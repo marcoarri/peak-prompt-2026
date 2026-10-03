@@ -14,10 +14,9 @@ const PATH_COMPRESS = 0.62;
 // Lead-in before the first photo so the opening shot shows cards ahead
 const START_LEAD_M = 40;
 const START_AHEAD_M = 32;
-// Min explore gap between consecutive photos (timeline padding — not path-based)
-const MIN_EXPLORE_GAP_M = 10;
-const CLOUD_W = 308;
-const CLOUD_H = 184; // ~57k pts — +20% detail
+// Point-cloud density: long side of pc maps (scripts/build_pointcloud_maps.py).
+// Aspect preserved per photo; denser than the old fixed 308×184 (~37% more pts @ 3:2).
+const CLOUD_LONG_SIDE = 360;
 const MAX_ACTIVE_CLOUDS = 12;
 const SHOW_AHEAD_M = 120;
 const MAX_VISIBLE_CARDS = 22;
@@ -149,11 +148,12 @@ function loadTexture(url, loader, { forCloud = false } = {}) {
       url,
       (tex) => {
         if (forCloud) {
-          // Match temp/ demo sampling for Points
+          // Display-referred sampling for custom Points shader (no HW sRGB decode).
+          // MeshBasic pc plane uses a SRGBColorSpace clone — see buildMediaVisuals.
           tex.colorSpace = THREE.NoColorSpace;
           tex.generateMipmaps = false;
-          tex.minFilter = THREE.LinearFilter;
-          tex.magFilter = THREE.LinearFilter;
+          tex.minFilter = THREE.NearestFilter;
+          tex.magFilter = THREE.NearestFilter;
           tex.flipY = true; // same as MeshBasic plane
         } else {
           tex.colorSpace = THREE.SRGBColorSpace;
@@ -170,30 +170,33 @@ function loadTexture(url, loader, { forCloud = false } = {}) {
   });
 }
 
-function makeCloudGeometry() {
-  const n = CLOUD_W * CLOUD_H;
+function makeCloudGeometry(cols, rows) {
+  const w = Math.max(1, cols | 0);
+  const h = Math.max(1, rows | 0);
+  const n = w * h;
   const uvs = new Float32Array(n * 2);
   let i = 0;
-  for (let y = 0; y < CLOUD_H; y++) {
-    for (let x = 0; x < CLOUD_W; x++) {
-      uvs[i++] = (x + 0.5) / CLOUD_W;
-      uvs[i++] = (y + 0.5) / CLOUD_H;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      uvs[i++] = (x + 0.5) / w;
+      uvs[i++] = (y + 0.5) / h;
     }
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(n * 3), 3));
   geo.setAttribute("aUv", new THREE.BufferAttribute(uvs, 2));
   geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 80);
+  geo.userData.cloudW = w;
+  geo.userData.cloudH = h;
   return geo;
 }
 
 function makeCloudMaterial(tex, aspect) {
   const w = PHOTO_H * aspect;
   const h = PHOTO_H;
-  // uSize is world-space point diameter (meters). temp/ used ~800-unit planes
-  // with uSize≈2; here the photo is ~PHOTO_H meters, so spacing ≈ PHOTO_H/CLOUD_H.
+  // uSize is world-space point diameter (meters).
   // uScale = viewportHeight/2 (Three.js sizeAttenuation convention).
-  const spacing = PHOTO_H / CLOUD_H;
+  const spacing = PHOTO_H / CLOUD_LONG_SIDE;
   return new THREE.ShaderMaterial({
     uniforms: {
       uColor: { value: tex },
@@ -201,18 +204,25 @@ function makeCloudMaterial(tex, aspect) {
       uSize: { value: spacing * 2.4 },
       uSpread: { value: 1 },
       uScale: { value: 400 },
+      uPointMul: { value: 1 },
+      uFogNear: { value: FOG_NEAR_M },
+      uFogFar: { value: FOG_FAR_M },
+      uFogColor: { value: new THREE.Color(0xffffff) },
       uPlane: { value: new THREE.Vector2(w, h) },
     },
     transparent: false,
     depthTest: true,
     depthWrite: true,
     toneMapped: false,
+    fog: false, // custom distance fog in shader (Points skip scene.fog)
     vertexShader: /* glsl */ `
       attribute vec2 aUv;
       uniform sampler2D uColor;
-      uniform float uDisp, uSize, uSpread, uScale;
+      uniform float uDisp, uSize, uSpread, uScale, uPointMul;
+      uniform float uFogNear, uFogFar;
       uniform vec2 uPlane;
       varying vec3 vColor;
+      varying float vFog;
       void main() {
         vec3 pos = vec3(
           (aUv.x - 0.5) * uPlane.x * uSpread,
@@ -225,18 +235,23 @@ function makeCloudMaterial(tex, aspect) {
         vColor = color;
         vec4 mv = modelViewMatrix * vec4(pos, 1.0);
         gl_Position = projectionMatrix * mv;
-        // Clamp hard — near camera must never become giant discs
-        float attn = uScale / max(0.55, -mv.z);
-        gl_PointSize = clamp(uSize * attn, 1.5, 7.0);
+        float depth = max(0.0, -mv.z);
+        // Soft entrance: fully fogged at far, clear as the mist approaches
+        vFog = smoothstep(uFogNear, uFogFar, depth);
+        float attn = uScale / max(0.55, depth);
+        gl_PointSize = clamp(uSize * attn * uPointMul, 1.0, 15.0);
       }
     `,
     fragmentShader: /* glsl */ `
       precision mediump float;
+      uniform vec3 uFogColor;
       varying vec3 vColor;
+      varying float vFog;
       void main() {
         vec2 d = gl_PointCoord - 0.5;
         if (dot(d, d) > 0.25) discard;
-        gl_FragColor = vec4(vColor, 1.0);
+        vec3 col = mix(vColor, uFogColor, vFog);
+        gl_FragColor = vec4(col, 1.0);
       }
     `,
   });
@@ -339,16 +354,6 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
     };
   });
 
-  // Temporal padding: enforce a minimum explore gap so clustered shots
-  // still reform one after another without stacking.
-  {
-    let cursor = -Infinity;
-    for (const p of placements) {
-      const padded = Math.max(p.naturalDist, cursor + MIN_EXPLORE_GAP_M);
-      p.dist = padded;
-      cursor = padded;
-    }
-  }
   const exploreTotal = Math.max(
     path.total * PATH_COMPRESS + START_LEAD_M,
     (placements[placements.length - 1]?.dist ?? 0) + START_AHEAD_M + 8
@@ -422,7 +427,18 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
   exploreRoot.add(explorePathLine);
 
   const loader = new THREE.TextureLoader();
-  const cloudGeo = makeCloudGeometry();
+  const cloudGeoCache = new Map(); // `${cols}x${rows}` → geometry
+  function cloudGeoFor(cols, rows) {
+    const w = Math.max(1, cols | 0);
+    const h = Math.max(1, rows | 0);
+    const key = `${w}x${h}`;
+    let g = cloudGeoCache.get(key);
+    if (!g) {
+      g = makeCloudGeometry(w, h);
+      cloudGeoCache.set(key, g);
+    }
+    return g;
+  }
   // Placeholder so the shader always has a valid sampler
   const placeholderTex = new THREE.DataTexture(
     new Uint8Array([255, 255, 255, 255]),
@@ -431,11 +447,13 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
     THREE.RGBAFormat
   );
   placeholderTex.needsUpdate = true;
+  let pointMul = 1;
   // Pool of clouds — several photos can dissolve together
   const cloudPool = Array.from({ length: MAX_ACTIVE_CLOUDS }, (_, i) => {
     const mat = makeCloudMaterial(placeholderTex, 1);
     mat.uniforms.uScale.value = (container.clientHeight || 800) * 0.5;
-    const pts = new THREE.Points(cloudGeo, mat);
+    mat.uniforms.uPointMul.value = pointMul;
+    const pts = new THREE.Points(cloudGeoFor(CLOUD_LONG_SIDE, CLOUD_LONG_SIDE), mat);
     pts.visible = false;
     pts.frustumCulled = false;
     pts.renderOrder = 40 + i;
@@ -443,8 +461,21 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
     return { pts, mat };
   });
 
-  function applyCloudSlot(slot, node, { disp, spread, scale, planeW, planeH }) {
+  function setPointMul(mul) {
+    pointMul = THREE.MathUtils.clamp(Number(mul) || 1, 0.25, 3);
+    for (const slot of cloudPool) {
+      slot.mat.uniforms.uPointMul.value = pointMul;
+      slot.mat.uniformsNeedUpdate = true;
+    }
+    if (mode === "explore") updateExploreLayout();
+    return pointMul;
+  }
+
+  function applyCloudSlot(slot, node, { disp, spread, scale, planeW, planeH, ahead }) {
     const { pts, mat } = slot;
+    const cols = node.cloudW || CLOUD_LONG_SIDE;
+    const rows = node.cloudH || CLOUD_LONG_SIDE;
+    pts.geometry = cloudGeoFor(cols, rows);
     pts.visible = true;
     pts.position.copy(node.group.position);
     pts.rotation.copy(node.group.rotation);
@@ -455,10 +486,25 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
     const h = planeH * s;
     mat.uniforms.uPlane.value.set(w, h);
     mat.uniforms.uDisp.value = disp * s;
-    const spacing = h / CLOUD_H;
+    const spacing = h / Math.max(1, rows);
     const t = THREE.MathUtils.clamp(disp / Math.max(1e-3, DISP_MAX), 0, 1);
     mat.uniforms.uSize.value = spacing * (2.1 + t * 0.55);
     mat.uniforms.uSpread.value = spread;
+    // Match scene fog band; bias far entrance with explore ahead distance
+    const fogFar = Math.min(FOG_FAR_M, SHOW_AHEAD_M * 0.95);
+    const fogNear = FOG_NEAR_M;
+    mat.uniforms.uFogNear.value = fogNear;
+    mat.uniforms.uFogFar.value = fogFar;
+    // Extra wash when just entering the visible ahead window
+    if (ahead != null && ahead > fogNear) {
+      const enter = THREE.MathUtils.clamp(
+        (ahead - fogNear) / Math.max(1, fogFar - fogNear),
+        0,
+        1
+      );
+      // Push effective fog so brand-new clouds read as mist first
+      mat.uniforms.uFogNear.value = THREE.MathUtils.lerp(fogNear, fogNear * 0.35, enter);
+    }
     mat.uniformsNeedUpdate = true;
   }
 
@@ -480,23 +526,113 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
     return g;
   }
 
+  function makeVideoElement(url) {
+    const video = document.createElement("video");
+    video.src = url;
+    video.crossOrigin = "anonymous";
+    video.loop = true;
+    video.muted = true; // required for autoplay
+    video.playsInline = true;
+    video.preload = "auto";
+    video.setAttribute("playsinline", "");
+    video.setAttribute("muted", "");
+    return video;
+  }
+
+  function stopNodeVideo(node) {
+    const v = node.video;
+    if (!v) return;
+    if (!v.paused) v.pause();
+    try {
+      if (v.currentTime > 0.05) v.currentTime = 0;
+    } catch {
+      /* ignore seek before ready */
+    }
+    node.videoPlaying = false;
+  }
+
+  function playNodeVideo(node) {
+    const v = node.video;
+    if (!v || node.videoPlaying) return;
+    const p = v.play();
+    if (p && typeof p.then === "function") {
+      p.then(() => {
+        node.videoPlaying = true;
+      }).catch(() => {
+        node.videoPlaying = false;
+      });
+    } else {
+      node.videoPlaying = true;
+    }
+  }
+
   async function buildMediaVisuals() {
-    // Lighter web assets: sm for cards, md kept for the dissolve cloud
+    // pc = aspect-correct × CLOUD_LONG_SIDE; photos fade md, videos play after reform
     const jobs = placements.map(async (placement) => {
       const { item } = placement;
-      const cardUrl = item.thumb || item.md || item.src;
-      const cloudUrl = item.md || item.thumb || item.src;
-      const [tex, cloudTex] = await Promise.all([
-        loadTexture(cardUrl, loader),
-        loadTexture(cloudUrl, loader, { forCloud: true }),
-      ]);
+      const isVideo = item.kind === "video";
+      const cardUrl = item.thumb || item.poster || item.md || item.src;
+      const cloudUrl = item.pc || item.poster || item.md || item.thumb || item.src;
+      const hiUrl = isVideo ? null : item.md || item.thumb || item.src;
+
+      const texP = loadTexture(cardUrl, loader);
+      const cloudP = loadTexture(cloudUrl, loader, { forCloud: true });
+      const hiP = hiUrl ? loadTexture(hiUrl, loader) : Promise.resolve(null);
+      const [tex, cloudTex, hiTex] = await Promise.all([texP, cloudP, hiP]);
+
+      let video = null;
+      let videoTex = null;
+      if (isVideo && item.src) {
+        video = makeVideoElement(item.src);
+        await new Promise((resolve) => {
+          const done = () => resolve();
+          video.addEventListener("loadeddata", done, { once: true });
+          video.addEventListener("error", done, { once: true });
+          // Some browsers need an explicit load()
+          try {
+            video.load();
+          } catch {
+            /* ignore */
+          }
+          // Fallback if already cached
+          if (video.readyState >= 2) resolve();
+        });
+        try {
+          video.pause();
+          video.currentTime = 0;
+        } catch {
+          /* ignore */
+        }
+        videoTex = new THREE.VideoTexture(video);
+        videoTex.colorSpace = THREE.SRGBColorSpace;
+        videoTex.minFilter = THREE.LinearFilter;
+        videoTex.magFilter = THREE.LinearFilter;
+        videoTex.generateMipmaps = false;
+      }
+
       const dissolveTex = cloudTex || tex;
+      const hiMap = videoTex || hiTex || tex;
+      // MeshBasic + NoColorSpace + output sRGB = too bright (treated as linear).
+      let pcMap = dissolveTex;
+      if (dissolveTex && dissolveTex.colorSpace !== THREE.SRGBColorSpace) {
+        pcMap = dissolveTex.clone();
+        pcMap.colorSpace = THREE.SRGBColorSpace;
+        pcMap.needsUpdate = true;
+      }
       const aspect = tex?.image
         ? (tex.image.width || 4) / (tex.image.height || 3)
         : item.width && item.height
           ? item.width / item.height
           : 4 / 3;
       const clamped = Math.min(Math.max(aspect, 0.7), 1.7);
+      const cloudW =
+        item.pcW ||
+        dissolveTex?.image?.width ||
+        (clamped >= 1 ? CLOUD_LONG_SIDE : Math.max(1, Math.round(CLOUD_LONG_SIDE * clamped)));
+      const cloudH =
+        item.pcH ||
+        dissolveTex?.image?.height ||
+        (clamped >= 1 ? Math.max(1, Math.round(CLOUD_LONG_SIDE / clamped)) : CLOUD_LONG_SIDE);
 
       const overviewMat = new THREE.MeshBasicMaterial({
         map: tex,
@@ -509,7 +645,6 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
         fog: false,
       });
 
-      // --- overview billboard ---
       const ov = new THREE.Mesh(planeGeoFor(clamped), overviewMat);
       ov.scale.setScalar(8);
       ov.position.copy(placement.world);
@@ -519,34 +654,54 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
       overviewBillboards.push(ov);
       pickables.push(ov);
 
-      // Explore card — transparent so it can fade in from the fog
-      const exploreMat = new THREE.MeshBasicMaterial({
-        map: tex,
-        color: tex ? 0xffffff : 0x888888,
+      const group = new THREE.Group();
+      const pcMat = new THREE.MeshBasicMaterial({
+        map: pcMap,
+        color: pcMap ? 0xffffff : 0x888888,
         side: THREE.DoubleSide,
-        transparent: true,
+        transparent: false,
         opacity: 1,
         depthWrite: true,
         toneMapped: false,
         fog: true,
       });
-      const group = new THREE.Group();
-      const explorePlane = new THREE.Mesh(planeGeoFor(clamped), exploreMat);
-      explorePlane.userData.item = item;
-      group.add(explorePlane);
+      const pcPlane = new THREE.Mesh(planeGeoFor(clamped), pcMat);
+      pcPlane.userData.item = item;
+      const hiMat = new THREE.MeshBasicMaterial({
+        map: hiMap,
+        color: hiMap ? 0xffffff : 0x888888,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        toneMapped: false,
+        fog: true,
+      });
+      const hiPlane = new THREE.Mesh(planeGeoFor(clamped), hiMat);
+      hiPlane.userData.item = item;
+      group.add(pcPlane);
+      group.add(hiPlane);
       group.visible = false;
       exploreRoot.add(group);
       exploreNodes.push({
         placement,
-        plane: explorePlane,
+        plane: hiPlane,
+        pcPlane,
+        hiPlane,
         group,
         tex,
         dissolveTex,
+        video,
+        videoTex,
+        videoPlaying: false,
+        isVideo,
+        cloudW,
+        cloudH,
         aspect: clamped,
         cardUrl,
         cloudUrl,
       });
-      pickables.push(explorePlane);
+      pickables.push(hiPlane, pcPlane);
     });
     await Promise.all(jobs);
   }
@@ -681,8 +836,12 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
 
       if (!show || ahead <= 0) {
         node.group.visible = false;
-        node.plane.visible = false;
-        node.plane.scale.setScalar(1);
+        node.pcPlane.visible = false;
+        node.hiPlane.visible = false;
+        node.pcPlane.scale.setScalar(1);
+        node.hiPlane.scale.setScalar(1);
+        node.hiPlane.material.opacity = 0;
+        stopNodeVideo(node);
         continue;
       }
 
@@ -725,7 +884,9 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
       // Path fold this frame only — hide, but scroll-back can show it again
       if (lz > -0.12) {
         node.group.visible = false;
-        node.plane.visible = false;
+        node.pcPlane.visible = false;
+        node.hiPlane.visible = false;
+        stopNodeVideo(node);
         continue;
       }
 
@@ -738,17 +899,19 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
       const viewDepth = Math.max(0.15, -lz);
       const coverFrac = screenCoverFrac(planeW, planeH, viewDepth);
       const reformT = reformAmount(coverFrac);
-      // Collapse mist first; photo only appears as points settle onto the plane
+      // Collapse mist first; pc plane only once displacement is done
       const dispFactor = Math.pow(1 - reformT, 1.15);
       const depthCap = Math.max(0.35, viewDepth * 0.88);
       const disp = Math.min(dispFactor * DISP_MAX, depthCap, DISP_MAX);
       const cloudScale = THREE.MathUtils.lerp(CLOUD_FAR_SCALE, CLOUD_NEAR_SCALE, smooth01(reformT));
       const cloudSpread = THREE.MathUtils.lerp(CLOUD_FAR_SPREAD, 1, smooth01(reformT));
-      // Plane starts late — avoids “solid behind / points flying toward it”
       const settled = 1 - dispFactor; // 0 exploded → 1 flat
-      const planeReveal = smooth01((settled - 0.55) / 0.4);
-      const showCloud = !!node.dissolveTex && dispFactor > 0.04;
-      const showPlane = planeReveal > 0.02;
+      const showCloud = !!node.dissolveTex && dispFactor > 0.02;
+      const showPc = !showCloud;
+      // After seamless pc handoff, hi-res fades in with further approach / scroll
+      const hiReveal = showPc
+        ? smooth01((coverFrac - REFORM_SCREEN_FRAC) / Math.max(0.05, 0.35))
+        : 0;
 
       // Exit: grow out of frame — no opacity fade
       let grow = 1;
@@ -773,21 +936,36 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
         });
       }
 
-      if (showPlane) {
-        node.plane.visible = true;
-        node.plane.scale.set(baseScaleX * grow, baseScaleY * grow, 1);
-        node.plane.material.opacity = settled > 0.95 ? 1 : planeReveal;
-        node.plane.material.depthWrite = planeReveal > 0.9;
-        node.plane.material.transparent = planeReveal < 0.99;
-        // Same depth band as the cloud so it replaces points, not sit behind them
-        node.plane.renderOrder = Math.round(8 + Math.max(0, 180 - ahead));
+      const order = Math.round(8 + Math.max(0, 180 - ahead));
+      if (showPc) {
+        node.pcPlane.visible = true;
+        node.pcPlane.scale.set(baseScaleX * grow, baseScaleY * grow, 1);
+        node.pcPlane.material.opacity = 1;
+        node.pcPlane.renderOrder = order;
+        node.hiPlane.visible = hiReveal > 0.01;
+        node.hiPlane.scale.set(baseScaleX * grow, baseScaleY * grow, 1);
+        node.hiPlane.material.opacity = hiReveal;
+        node.hiPlane.material.transparent = hiReveal < 0.99;
+        node.hiPlane.material.depthWrite = hiReveal > 0.9;
+        node.hiPlane.renderOrder = order + 1;
+        // Videos: hold first frame until reformed, then autoplay under hi fade-in
+        if (node.isVideo) {
+          if (hiReveal > 0.2 && ahead >= 0.35 && grow <= 3.1) playNodeVideo(node);
+          else stopNodeVideo(node);
+        }
         if (ahead < 0.35 || grow > 3.1) {
           node.group.visible = false;
-          node.plane.visible = false;
+          node.pcPlane.visible = false;
+          node.hiPlane.visible = false;
+          stopNodeVideo(node);
         }
       } else {
-        node.plane.visible = false;
-        node.plane.scale.set(baseScaleX, baseScaleY, 1);
+        node.pcPlane.visible = false;
+        node.hiPlane.visible = false;
+        node.pcPlane.scale.set(baseScaleX, baseScaleY, 1);
+        node.hiPlane.scale.set(baseScaleX, baseScaleY, 1);
+        node.hiPlane.material.opacity = 0;
+        stopNodeVideo(node);
       }
     }
 
@@ -813,6 +991,7 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
     mode = next === "explore" ? "explore" : "overview";
     container.dataset.mode = mode;
     stopAuto();
+    for (const n of exploreNodes) stopNodeVideo(n);
     if (mode === "explore") {
       const first = placements[0]?.dist ?? START_LEAD_M;
       // Start further back so the first cards are clearly visible ahead
@@ -884,7 +1063,9 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
       pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointer, camera);
-      const meshes = exploreNodes.filter((n) => n.plane.visible).map((n) => n.plane);
+      const meshes = exploreNodes
+        .filter((n) => n.hiPlane.visible || n.pcPlane.visible)
+        .flatMap((n) => [n.hiPlane, n.pcPlane].filter((m) => m.visible));
       const hits = raycaster.intersectObjects(meshes, false);
       if (hits[0]?.object?.userData?.item) onSelect?.(hits[0].object.userData.item);
       return;
@@ -964,6 +1145,8 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
   return {
     setMode,
     getMode: () => mode,
+    setPointMul,
+    getPointMul: () => pointMul,
     dispose() {
       cancelAnimationFrame(raf);
       ro.disconnect();

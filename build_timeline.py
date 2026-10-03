@@ -35,6 +35,21 @@ MEDIA_EXT = {".jpeg", ".jpg", ".png", ".mov", ".mp4", ".heic", ".webp", ".gif"}
 VIDEO_EXT = {".mov", ".mp4"}
 LOCAL_TZ = timezone(timedelta(hours=2))
 
+# Manual local-time overrides (hike day) — videos lacked usable container timestamps.
+# Date = GPX day. IMG_6944: 15:04 interpolated (9 times given for 10 clips).
+VIDEO_TIME_OVERRIDES = {
+    "IMG_6878": "14:10",
+    "IMG_6879": "14:12",
+    "IMG_6899": "14:21",
+    "IMG_6932": "14:48",
+    "IMG_6933": "14:50",
+    "IMG_6935": "14:56",
+    "IMG_6943": "15:02",
+    "IMG_6944": "15:04",
+    "IMG_6974": "15:26",
+    "IMG_6979": "15:29",
+}
+
 
 def local_tag(tag: str) -> str:
     return tag.split("}")[-1]
@@ -126,13 +141,23 @@ def web_fields(entry, fallback_src):
     if not entry:
         return {"src": fallback_src, "original": fallback_src}
     if entry["kind"] == "photo":
-        return {"src": entry["lg"]["src"], "md": entry["md"]["src"], "thumb": entry["sm"]["src"],
-                "width": entry["lg"]["w"], "height": entry["lg"]["h"], "original": entry["original"]}
+        fields = {"src": entry["lg"]["src"], "md": entry["md"]["src"], "thumb": entry["sm"]["src"],
+                  "width": entry["lg"]["w"], "height": entry["lg"]["h"], "original": entry["original"]}
+        if entry.get("pc"):
+            fields["pc"] = entry["pc"]["src"]
+            fields["pcW"] = entry["pc"]["w"]
+            fields["pcH"] = entry["pc"]["h"]
+        return fields
     if entry["kind"] == "video":
-        return {"src": entry["video"]["src"], "poster": entry["poster"]["src"],
-                "thumb": entry["poster"]["src"], "width": entry["video"]["w"],
-                "height": entry["video"]["h"], "duration": entry["duration"],
-                "original": entry["original"]}
+        fields = {"src": entry["video"]["src"], "poster": entry["poster"]["src"],
+                  "thumb": entry["poster"]["src"], "width": entry["video"]["w"],
+                  "height": entry["video"]["h"], "duration": entry["duration"],
+                  "original": entry["original"]}
+        if entry.get("pc"):
+            fields["pc"] = entry["pc"]["src"]
+            fields["pcW"] = entry["pc"]["w"]
+            fields["pcH"] = entry["pc"]["h"]
+        return fields
     return {"src": entry["audio"]["src"], "duration": entry["duration"], "original": entry["original"]}
 
 
@@ -153,12 +178,19 @@ def main():
 
     manifest = load_manifest()
     media_files = sorted(p for p in FOTO.iterdir() if p.suffix.lower() in MEDIA_EXT)
+    gpx_day = times[0].astimezone(LOCAL_TZ).date()
     items = []
     for path in media_files:
-        t, source = media_time(path)
+        kind = "video" if path.suffix.lower() in VIDEO_EXT else "photo"
+        override = VIDEO_TIME_OVERRIDES.get(path.stem) if kind == "video" else None
+        if override:
+            hh, mm = map(int, override.split(":"))
+            t = datetime(gpx_day.year, gpx_day.month, gpx_day.day, hh, mm, 0, tzinfo=LOCAL_TZ)
+            source = "manual"
+        else:
+            t, source = media_time(path)
         t_utc = t.astimezone(timezone.utc)
         pt, delta = nearest_point(track, times, t_utc)
-        kind = "video" if path.suffix.lower() in VIDEO_EXT else "photo"
         items.append(
             {
                 "id": path.stem,

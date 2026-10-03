@@ -117,6 +117,36 @@
       font-weight: 600;
       cursor: pointer;
     }
+
+    .point-size {
+      position: fixed;
+      bottom: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 0.55rem 0.85rem;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid #d0d0d0;
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
+      color: #333;
+      font-size: 0.78rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .point-size input[type="range"] {
+      width: 140px;
+      accent-color: #111;
+    }
+
+    .point-size output {
+      min-width: 2.6em;
+      font-variant-numeric: tabular-nums;
+      color: #111;
+    }
   </style>
 </head>
 <body>
@@ -126,6 +156,12 @@
     <button type="button" data-mode="overview" aria-pressed="true">Volumetrica</button>
     <button type="button" data-mode="explore" aria-pressed="false">Esplora</button>
   </div>
+
+  <label class="point-size" for="pointMul">
+    Pallini ×
+    <input id="pointMul" type="range" min="0.25" max="3" step="0.05" value="1" />
+    <output id="pointMulVal" for="pointMul">1.00×</output>
+  </label>
 
   <div class="lightbox" id="lightbox" hidden>
     <div class="lightbox-inner">
@@ -147,7 +183,7 @@
   }
   </script>
   <script type="module">
-    import { initPath3D } from "./path3d.js?v=45";
+    import { initPath3D } from "./path3d.js?v=56";
 
     const data = window.TIMELINE_DATA;
     if (!data) {
@@ -159,6 +195,8 @@
     const stage = document.getElementById("lightboxStage");
     const lbMeta = document.getElementById("lightboxMeta");
     const modeButtons = document.querySelectorAll(".mode-switch [data-mode]");
+    const pointMulInput = document.getElementById("pointMul");
+    const pointMulVal = document.getElementById("pointMulVal");
 
     function openLightbox(item) {
       stage.replaceChildren();
@@ -217,6 +255,20 @@
       if (!btn) return;
       setUiMode(btn.dataset.mode);
     });
+
+    function syncPointMulUi(mul) {
+      const v = Number(mul);
+      pointMulInput.value = String(v);
+      pointMulVal.textContent = `${v.toFixed(2)}×`;
+    }
+
+    pointMulInput.addEventListener("input", () => {
+      const mul = app?.setPointMul?.(pointMulInput.value);
+      if (mul != null) syncPointMulUi(mul);
+      else syncPointMulUi(pointMulInput.value);
+    });
+
+    if (app?.getPointMul) syncPointMulUi(app.getPointMul());
   </script>
 </body>
 </html>
