@@ -29,8 +29,8 @@ POSTER_DIR = OUT / "poster"
 PC_DIR = OUT / "img" / "pc"
 MANIFEST = OUT / "media-manifest.json"
 
-# Must stay in sync with path3d.js CLOUD_LONG_SIDE
-PC_LONG_SIDE = 360
+# Must stay in sync with path3d.js CLOUD_LONG_SIDE (~10% less than prior 360)
+PC_LONG_SIDE = 324
 PC_EXT = ".avif"
 PC_QUALITY = 55
 POSTER_EXT = {".webp", ".avif", ".jpg", ".jpeg", ".png"}

@@ -15,8 +15,8 @@ const PATH_COMPRESS = 0.62;
 const START_LEAD_M = 40;
 const START_AHEAD_M = 32;
 // Point-cloud density: long side of pc maps (scripts/build_pointcloud_maps.py).
-// Aspect preserved per photo; denser than the old fixed 308×184 (~37% more pts @ 3:2).
-const CLOUD_LONG_SIDE = 360;
+// Aspect preserved; ~10% less than prior 360 long-side.
+const CLOUD_LONG_SIDE = 324;
 const MAX_ACTIVE_CLOUDS = 12;
 const SHOW_AHEAD_M = 120;
 const MAX_VISIBLE_CARDS = 22;
@@ -24,9 +24,13 @@ const MAX_VISIBLE_CARDS = 22;
 const FOG_NEAR_M = 32;
 const FOG_FAR_M = 110;
 // Far = fully exploded mist; approaches 0 as the photo reforms
-const DISP_MAX = PHOTO_H * 2.475;
+const DISP_MAX = PHOTO_H * 2.375; // ~8.55 m (−5% from 2.5) — Z uses (lum - 0.4)
 // Reform target (limiting side vs viewport) — solid reads clearly around here
 const REFORM_SCREEN_FRAC = 0.38;
+// Formed-image opacity: fade in → hold at 100% → linear dissolve (original pace).
+const EXIT_FADE_IN_START = REFORM_SCREEN_FRAC - 0.34; // crossfade with collapsing cloud
+const EXIT_HOLD_SPAN = 0.22; // extra coverFrac at full opacity after reform
+const EXIT_DISSOLVE_SPAN = 0.75; // same length as the original exit, linear
 // Far clouds are oversized mist; they shrink to the photo footprint as they reform
 const CLOUD_FAR_SCALE = 5.1;
 const CLOUD_NEAR_SCALE = 1;
@@ -223,6 +227,11 @@ function makeCloudMaterial(tex, aspect) {
       uniform vec2 uPlane;
       varying vec3 vColor;
       varying float vFog;
+
+      float hash21(vec2 p) {
+        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+      }
+
       void main() {
         vec3 pos = vec3(
           (aUv.x - 0.5) * uPlane.x * uSpread,
@@ -231,7 +240,27 @@ function makeCloudMaterial(tex, aspect) {
         );
         vec3 color = texture2D(uColor, aUv).rgb;
         float lum = dot(color, vec3(0.299, 0.587, 0.114));
-        pos.z = (lum - 0.5) * uDisp;
+        // Depth explode (luminance, biased so midtones push forward)
+        pos.z = (lum - 0.4) * uDisp;
+
+        // Light lateral explode — stable per-point, organic mix of
+        // outward push + swirl, tinted by color channels
+        float n0 = hash21(aUv);
+        float n1 = hash21(aUv + vec2(17.13, 9.27));
+        float n2 = hash21(aUv + vec2(3.71, 28.53));
+        vec2 fromC = aUv - 0.5;
+        float r = length(fromC);
+        vec2 radial = r > 1e-4 ? fromC / r : vec2(1.0, 0.0);
+        float ang = n0 * 6.2831853;
+        vec2 swirl = vec2(cos(ang), sin(ang));
+        // Bias: warmer tones drift one way, cooler the other
+        vec2 chroma = vec2(color.r - color.b, color.g - lum) * 1.4;
+        vec2 latDir = normalize(radial * (0.55 + n1 * 0.7) + swirl * 0.65 + chroma * 0.35);
+        float latAmp = uDisp * 0.01 * (0.4 + lum * 0.75 + n2 * 0.45);
+        // Soften near image center so silhouette stays readable
+        latAmp *= mix(0.55, 1.15, smoothstep(0.05, 0.55, r));
+        pos.xy += latDir * latAmp;
+
         vColor = color;
         vec4 mv = modelViewMatrix * vec4(pos, 1.0);
         gl_Position = projectionMatrix * mv;
@@ -447,7 +476,7 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
     THREE.RGBAFormat
   );
   placeholderTex.needsUpdate = true;
-  let pointMul = 1;
+  let pointMul = 2.5;
   // Pool of clouds — several photos can dissolve together
   const cloudPool = Array.from({ length: MAX_ACTIVE_CLOUDS }, (_, i) => {
     const mat = makeCloudMaterial(placeholderTex, 1);
@@ -612,13 +641,6 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
 
       const dissolveTex = cloudTex || tex;
       const hiMap = videoTex || hiTex || tex;
-      // MeshBasic + NoColorSpace + output sRGB = too bright (treated as linear).
-      let pcMap = dissolveTex;
-      if (dissolveTex && dissolveTex.colorSpace !== THREE.SRGBColorSpace) {
-        pcMap = dissolveTex.clone();
-        pcMap.colorSpace = THREE.SRGBColorSpace;
-        pcMap.needsUpdate = true;
-      }
       const aspect = tex?.image
         ? (tex.image.width || 4) / (tex.image.height || 3)
         : item.width && item.height
@@ -655,18 +677,7 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
       pickables.push(ov);
 
       const group = new THREE.Group();
-      const pcMat = new THREE.MeshBasicMaterial({
-        map: pcMap,
-        color: pcMap ? 0xffffff : 0x888888,
-        side: THREE.DoubleSide,
-        transparent: false,
-        opacity: 1,
-        depthWrite: true,
-        toneMapped: false,
-        fog: true,
-      });
-      const pcPlane = new THREE.Mesh(planeGeoFor(clamped), pcMat);
-      pcPlane.userData.item = item;
+      // Real image / video — replaces point cloud when displacement finishes
       const hiMat = new THREE.MeshBasicMaterial({
         map: hiMap,
         color: hiMap ? 0xffffff : 0x888888,
@@ -679,14 +690,12 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
       });
       const hiPlane = new THREE.Mesh(planeGeoFor(clamped), hiMat);
       hiPlane.userData.item = item;
-      group.add(pcPlane);
       group.add(hiPlane);
       group.visible = false;
       exploreRoot.add(group);
       exploreNodes.push({
         placement,
         plane: hiPlane,
-        pcPlane,
         hiPlane,
         group,
         tex,
@@ -701,7 +710,7 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
         cardUrl,
         cloudUrl,
       });
-      pickables.push(hiPlane, pcPlane);
+      pickables.push(hiPlane);
     });
     await Promise.all(jobs);
   }
@@ -836,9 +845,7 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
 
       if (!show || ahead <= 0) {
         node.group.visible = false;
-        node.pcPlane.visible = false;
         node.hiPlane.visible = false;
-        node.pcPlane.scale.setScalar(1);
         node.hiPlane.scale.setScalar(1);
         node.hiPlane.material.opacity = 0;
         stopNodeVideo(node);
@@ -884,7 +891,6 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
       // Path fold this frame only — hide, but scroll-back can show it again
       if (lz > -0.12) {
         node.group.visible = false;
-        node.pcPlane.visible = false;
         node.hiPlane.visible = false;
         stopNodeVideo(node);
         continue;
@@ -899,30 +905,53 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
       const viewDepth = Math.max(0.15, -lz);
       const coverFrac = screenCoverFrac(planeW, planeH, viewDepth);
       const reformT = reformAmount(coverFrac);
-      // Collapse mist first; pc plane only once displacement is done
-      const dispFactor = Math.pow(1 - reformT, 1.15);
+      // Fog opacity (0 far/fogged → 1 clear). Disp peaks at full opacity, then
+      // collapses to 0 as the image reforms — driven by camera distance/cover.
+      const fogFar = Math.min(FOG_FAR_M, SHOW_AHEAD_M * 0.95);
+      // 1 = fully fogged (far), 0 = clear — same band as shader entrance fog
+      const fogT = THREE.MathUtils.clamp(
+        (viewDepth - FOG_NEAR_M) / Math.max(1e-3, fogFar - FOG_NEAR_M),
+        0,
+        1
+      );
+      const fogSmooth = fogT * fogT * (3 - 2 * fogT);
+      const cloudOpacity = 1 - fogSmooth; // 100% when camera has cleared the fog band
+      // Max disp at full opacity; collapses to 0 as the image forms
+      const dispFactor = cloudOpacity * Math.pow(1 - reformT, 1.15);
       const depthCap = Math.max(0.35, viewDepth * 0.88);
       const disp = Math.min(dispFactor * DISP_MAX, depthCap, DISP_MAX);
       const cloudScale = THREE.MathUtils.lerp(CLOUD_FAR_SCALE, CLOUD_NEAR_SCALE, smooth01(reformT));
       const cloudSpread = THREE.MathUtils.lerp(CLOUD_FAR_SPREAD, 1, smooth01(reformT));
-      const settled = 1 - dispFactor; // 0 exploded → 1 flat
-      const showCloud = !!node.dissolveTex && dispFactor > 0.02;
-      const showPc = !showCloud;
-      // After seamless pc handoff, hi-res fades in with further approach / scroll
-      const hiReveal = showPc
-        ? smooth01((coverFrac - REFORM_SCREEN_FRAC) / Math.max(0.05, 0.35))
-        : 0;
 
-      // Exit: grow out of frame — no opacity fade
+      // Fade in (with cloud) → hold 100% → linear dissolve at original pace
+      const holdEnd = REFORM_SCREEN_FRAC + EXIT_HOLD_SPAN;
       let grow = 1;
-      if (settled > 0.92) {
-        const exitU = THREE.MathUtils.clamp(
-          (coverFrac - REFORM_SCREEN_FRAC) / Math.max(0.05, 0.75),
+      let planeOpacity = 0;
+      let dissolving = false;
+      if (coverFrac < REFORM_SCREEN_FRAC) {
+        const u = THREE.MathUtils.clamp(
+          (coverFrac - EXIT_FADE_IN_START) /
+            Math.max(0.05, REFORM_SCREEN_FRAC - EXIT_FADE_IN_START),
           0,
           1
         );
-        grow = 1 + smooth01(exitU) * 2.4;
+        planeOpacity = u; // linear crossfade in
+      } else if (coverFrac < holdEnd) {
+        planeOpacity = 1;
+      } else {
+        dissolving = true;
+        const exitU = THREE.MathUtils.clamp(
+          (coverFrac - holdEnd) / Math.max(0.05, EXIT_DISSOLVE_SPAN),
+          0,
+          1
+        );
+        planeOpacity = 1 - exitU; // linear, full span like the original exit
+        grow = 1 + exitU * 2.4;
       }
+
+      // Crossfade: keep mist until the real image is mostly opaque
+      const showPlane = planeOpacity > 0.02;
+      const showCloud = !!node.dissolveTex && reformT < 0.995 && planeOpacity < 0.92;
 
       if (showCloud) {
         cloudJobs.push({
@@ -937,32 +966,25 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
       }
 
       const order = Math.round(8 + Math.max(0, 180 - ahead));
-      if (showPc) {
-        node.pcPlane.visible = true;
-        node.pcPlane.scale.set(baseScaleX * grow, baseScaleY * grow, 1);
-        node.pcPlane.material.opacity = 1;
-        node.pcPlane.renderOrder = order;
-        node.hiPlane.visible = hiReveal > 0.01;
+      if (showPlane) {
+        node.hiPlane.visible = true;
         node.hiPlane.scale.set(baseScaleX * grow, baseScaleY * grow, 1);
-        node.hiPlane.material.opacity = hiReveal;
-        node.hiPlane.material.transparent = hiReveal < 0.99;
-        node.hiPlane.material.depthWrite = hiReveal > 0.9;
-        node.hiPlane.renderOrder = order + 1;
-        // Videos: hold first frame until reformed, then autoplay under hi fade-in
+        node.hiPlane.material.opacity = planeOpacity;
+        node.hiPlane.material.transparent = planeOpacity < 0.99;
+        node.hiPlane.material.depthWrite = planeOpacity > 0.9;
+        node.hiPlane.renderOrder = order;
         if (node.isVideo) {
-          if (hiReveal > 0.2 && ahead >= 0.35 && grow <= 3.1) playNodeVideo(node);
-          else stopNodeVideo(node);
+          if (planeOpacity > 0.55 && ahead >= 0.35 && grow <= 3.1) playNodeVideo(node);
+          else if (dissolving || planeOpacity < 0.4) stopNodeVideo(node);
         }
-        if (ahead < 0.35 || grow > 3.1) {
+        // Only cull when truly past the card — not during fade-in (opacity near 0)
+        if (ahead < 0.35 || grow > 3.1 || (dissolving && planeOpacity < 0.04)) {
           node.group.visible = false;
-          node.pcPlane.visible = false;
           node.hiPlane.visible = false;
           stopNodeVideo(node);
         }
       } else {
-        node.pcPlane.visible = false;
         node.hiPlane.visible = false;
-        node.pcPlane.scale.set(baseScaleX, baseScaleY, 1);
         node.hiPlane.scale.set(baseScaleX, baseScaleY, 1);
         node.hiPlane.material.opacity = 0;
         stopNodeVideo(node);
@@ -993,9 +1015,8 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
     stopAuto();
     for (const n of exploreNodes) stopNodeVideo(n);
     if (mode === "explore") {
-      const first = placements[0]?.dist ?? START_LEAD_M;
-      // Start further back so the first cards are clearly visible ahead
-      walkDist = Math.max(0, first - START_AHEAD_M);
+      // Farthest POV — start of lead-in, everything ahead
+      walkDist = 0;
       for (const slot of cloudPool) slot.pts.visible = false;
       applyExploreCamera();
     } else {
@@ -1063,9 +1084,7 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
       pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointer, camera);
-      const meshes = exploreNodes
-        .filter((n) => n.hiPlane.visible || n.pcPlane.visible)
-        .flatMap((n) => [n.hiPlane, n.pcPlane].filter((m) => m.visible));
+      const meshes = exploreNodes.filter((n) => n.hiPlane.visible).map((n) => n.hiPlane);
       const hits = raycaster.intersectObjects(meshes, false);
       if (hits[0]?.object?.userData?.item) onSelect?.(hits[0].object.userData.item);
       return;
