@@ -1,0 +1,39 @@
+# Dependencies / local env
+.venv/
+venv/
+__pycache__/
+*.pyc
+.Python
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Large media / DEM — keep locally, do not push
+assets/foto/
+assets/web/
+assets/audio/
+assets/dem/
+_qa/
+*.jpeg
+*.jpg
+*.png
+*.gif
+*.webp
+*.avif
+*.heic
+*.tif
+*.tiff
+*.mov
+*.mp4
+*.m4a
+*.mp3
+*.wav
+*.aac
+
+# Backups / junk
+*.bak
+*.tmp
+.agent-tools/

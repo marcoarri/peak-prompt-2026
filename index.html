@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Peak Prompt — 3D</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      background: #fff;
+      overflow: hidden;
+      font-family: system-ui, sans-serif;
+    }
+
+    #path3dStage {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      background: #fff;
+    }
+
+    #path3dStage canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    #path3dStage canvas:active { cursor: grabbing; }
+
+    .hint {
+      position: fixed;
+      left: 1rem;
+      bottom: 1rem;
+      z-index: 2;
+      margin: 0;
+      padding: 0.4rem 0.65rem;
+      background: rgba(255, 255, 255, 0.85);
+      color: #333;
+      font-size: 0.72rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      pointer-events: none;
+    }
+
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: grid;
+      place-items: center;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.92);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    .lightbox.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .lightbox-inner {
+      width: min(960px, 100%);
+      max-height: min(88vh, 900px);
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .lightbox-media {
+      width: 100%;
+      max-height: min(78vh, 820px);
+      object-fit: contain;
+      background: #fff;
+    }
+
+    .lightbox-bar {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      color: #333;
+      font-size: 0.88rem;
+    }
+
+    .lightbox button {
+      appearance: none;
+      border: 1px solid #333;
+      background: #fff;
+      color: #111;
+      padding: 0.45rem 0.8rem;
+      font: inherit;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="path3dStage"></div>
+  <p class="hint">Orbit · pan · WASD · Q/E · Shift · click</p>
+
+  <div class="lightbox" id="lightbox" hidden>
+    <div class="lightbox-inner">
+      <div id="lightboxStage"></div>
+      <div class="lightbox-bar">
+        <div id="lightboxMeta"></div>
+        <button type="button" id="lightboxClose">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="timeline-data.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module">
+    import { initPath3D } from "./path3d.js?v=3";
+
+    const data = window.TIMELINE_DATA;
+    if (!data) {
+      document.body.textContent = "Missing timeline-data.js — run python3 build_timeline.py";
+      throw new Error("No timeline data");
+    }
+
+    const lightbox = document.getElementById("lightbox");
+    const stage = document.getElementById("lightboxStage");
+    const lbMeta = document.getElementById("lightboxMeta");
+
+    function openLightbox(item) {
+      stage.replaceChildren();
+      let el;
+      if (item.kind === "video") {
+        el = document.createElement("video");
+        el.controls = true;
+        el.autoplay = true;
+        el.playsInline = true;
+      } else {
+        el = document.createElement("img");
+        el.alt = item.file;
+      }
+      el.src = item.src;
+      el.className = "lightbox-media";
+      stage.appendChild(el);
+      lbMeta.textContent = `${item.timeLocal} · ${item.ele ?? "—"} m · ${item.file}`;
+      lightbox.hidden = false;
+      requestAnimationFrame(() => lightbox.classList.add("open"));
+    }
+
+    function closeLightbox() {
+      lightbox.classList.remove("open");
+      const media = stage.querySelector("video");
+      if (media) media.pause();
+      setTimeout(() => {
+        lightbox.hidden = true;
+        stage.replaceChildren();
+      }, 250);
+    }
+
+    document.getElementById("lightboxClose").addEventListener("click", closeLightbox);
+    lightbox.addEventListener("click", (e) => {
+      if (e.target === lightbox) closeLightbox();
+    });
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeLightbox();
+    });
+
+    initPath3D({
+      container: document.getElementById("path3dStage"),
+      data,
+      onSelect: openLightbox,
+    });
+  </script>
+</body>
+</html>
