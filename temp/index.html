@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Luminance Point Cloud</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+  canvas { display: block; }
+  #ui {
+    position: fixed; top: 12px; left: 12px; width: 230px;
+    padding: 14px 16px 16px; border-radius: 10px;
+    background: rgba(18,18,20,.82); backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,.1);
+    font: 12px/1.4 ui-sans-serif, -apple-system, system-ui, sans-serif;
+    color: #e8e8ea; user-select: none;
+  }
+  #ui h1 { margin: 0 0 2px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: #fff; }
+  #ui .sub { margin: 0 0 12px; font-size: 11px; color: #8b8b93; }
+  .row { margin-bottom: 10px; }
+  .row label { display: flex; justify-content: space-between; margin-bottom: 4px; color: #a9a9b2; }
+  .row label b { color: #fff; font-weight: 500; font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: #6aa3ff; margin: 0; }
+  .checks { display: flex; gap: 14px; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08); }
+  .checks label { display: flex; align-items: center; gap: 5px; color: #a9a9b2; cursor: pointer; }
+  .hint { margin-top: 10px; font-size: 10.5px; color: #6c6c75; }
+  #err { position: fixed; inset: 0; display: none; place-items: center; text-align: center;
+         font: 13px/1.6 ui-monospace, monospace; color: #ff8c8c; padding: 24px; }
+</style>
+</head>
+<body>
+<div id="ui">
+  <h1>Luminance Cloud</h1>
+  <p class="sub">800 × 400 — 320,000 points</p>
+  <div class="row">
+    <label>Displacement <b id="vDisp">120</b></label>
+    <input id="disp" type="range" min="0" max="400" value="120" step="1">
+  </div>
+  <div class="row">
+    <label>Point size <b id="vSize">2.2</b></label>
+    <input id="size" type="range" min="0.2" max="6" value="2.2" step="0.1">
+  </div>
+  <div class="row">
+    <label>Spread <b id="vSpread">1.0</b></label>
+    <input id="spread" type="range" min="0.2" max="2.5" value="1" step="0.05">
+  </div>
+  <div class="checks">
+    <label><input id="invert" type="checkbox"> invert</label>
+    <label><input id="spin" type="checkbox" checked> spin</label>
+  </div>
+  <p class="hint">drag · orbit &nbsp; scroll · zoom</p>
+</div>
+<div id="err"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+<script>
+const W = 800, H = 400;
+
+const renderer = new THREE.WebGLRenderer({ antialias: false });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.setClearColor(0x05050a, 1);
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 1, 5000);
+
+// ---- geometry: one vertex per pixel, carrying only its UV ----
+// position is reconstructed in the vertex shader from the uv, so the only
+// per-point data uploaded is 2 floats.
+const uvs = new Float32Array(W * H * 2);
+let i = 0;
+for (let y = 0; y < H; y++) {
+  for (let x = 0; x < W; x++) {
+    uvs[i++] = (x + 0.5) / W;
+    uvs[i++] = (y + 0.5) / H;
+  }
+}
+const geo = new THREE.BufferGeometry();
+geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(W * H * 3), 3)); // unused, keeps three happy
+geo.setAttribute('aUv', new THREE.BufferAttribute(uvs, 2));
+geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1200);
+
+const loader = new THREE.TextureLoader();
+const load = (url) => new Promise((res, rej) => loader.load(url, (t) => {
+  t.minFilter = t.magFilter = THREE.NearestFilter;
+  t.generateMipmaps = false;
+  t.flipY = false;
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+  res(t);
+}, undefined, rej));
+
+const mat = new THREE.ShaderMaterial({
+  uniforms: {
+    uColor:   { value: null },
+    uLum:     { value: null },
+    uDisp:    { value: 120 },
+    uSize:    { value: 2.2 },
+    uSpread:  { value: 1.0 },
+    uInvert:  { value: 0 },
+    uScale:   { value: innerHeight }
+  },
+  vertexShader: /* glsl */`
+    attribute vec2 aUv;
+    uniform sampler2D uColor, uLum;
+    uniform float uDisp, uSize, uSpread, uScale;
+    uniform int uInvert;
+    varying vec3 vColor;
+
+    void main() {
+      // image-space grid, centred, y flipped so the image reads upright
+      vec3 pos = vec3((aUv.x - 0.5) * 800.0 * uSpread,
+                      (0.5 - aUv.y) * 400.0 * uSpread,
+                      0.0);
+
+      float lum = texture2D(uLum, aUv).r;
+      if (uInvert == 1) lum = 1.0 - lum;
+      pos.z = (lum - 0.5) * uDisp;
+
+      vColor = texture2D(uColor, aUv).rgb;
+
+      vec4 mv = modelViewMatrix * vec4(pos, 1.0);
+      gl_Position = projectionMatrix * mv;
+      gl_PointSize = max(1.0, uSize * (uScale / -mv.z));
+    }`,
+  fragmentShader: /* glsl */`
+    precision mediump float;
+    varying vec3 vColor;
+    void main() {
+      // round points
+      vec2 d = gl_PointCoord - 0.5;
+      if (dot(d, d) > 0.25) discard;
+      gl_FragColor = vec4(vColor, 1.0);
+    }`
+});
+
+const points = new THREE.Points(geo, mat);
+scene.add(points);
+
+// ---- minimal orbit controls ----
+const st = { theta: 0, phi: 0, radius: 900, tx: 0, ty: 0 };
+let drag = null;
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  drag = { x: e.clientX, y: e.clientY, pan: e.button === 2 || e.shiftKey };
+  renderer.domElement.setPointerCapture(e.pointerId);
+  spin.checked = false;
+});
+addEventListener('pointerup', () => drag = null);
+addEventListener('pointermove', (e) => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  drag.x = e.clientX; drag.y = e.clientY;
+  if (drag.pan) {
+    st.tx -= dx * st.radius * 0.0015;
+    st.ty += dy * st.radius * 0.0015;
+  } else {
+    st.theta -= dx * 0.005;
+    st.phi = Math.max(-1.45, Math.min(1.45, st.phi - dy * 0.005));
+  }
+});
+renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
+renderer.domElement.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  st.radius = Math.max(60, Math.min(3000, st.radius * (1 + Math.sign(e.deltaY) * 0.1)));
+}, { passive: false });
+
+// ---- ui ----
+const bind = (id, out, uni, fmt) => {
+  const el = document.getElementById(id), lbl = document.getElementById(out);
+  const set = () => { mat.uniforms[uni].value = +el.value; lbl.textContent = fmt(+el.value); };
+  el.addEventListener('input', set); set();
+};
+bind('disp',   'vDisp',   'uDisp',   v => v.toFixed(0));
+bind('size',   'vSize',   'uSize',   v => v.toFixed(1));
+bind('spread', 'vSpread', 'uSpread', v => v.toFixed(2));
+const invert = document.getElementById('invert'), spin = document.getElementById('spin');
+invert.addEventListener('change', () => mat.uniforms.uInvert.value = invert.checked ? 1 : 0);
+
+addEventListener('resize', () => {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  mat.uniforms.uScale.value = innerHeight;
+});
+
+function frame() {
+  requestAnimationFrame(frame);
+  if (spin.checked) st.theta += 0.0015;
+  camera.position.set(
+    st.tx + st.radius * Math.cos(st.phi) * Math.sin(st.theta),
+    st.ty + st.radius * Math.sin(st.phi),
+    st.radius * Math.cos(st.phi) * Math.cos(st.theta)
+  );
+  camera.lookAt(st.tx, st.ty, 0);
+  renderer.render(scene, camera);
+}
+
+Promise.all([load('color_400.png'), load('luminance_400.png')])
+  .then(([c, l]) => {
+    mat.uniforms.uColor.value = c;
+    mat.uniforms.uLum.value = l;
+    frame();
+  })
+  .catch(() => {
+    document.getElementById('err').style.display = 'grid';
+    document.getElementById('err').textContent =
+      'Could not load the textures.\nServe this folder over HTTP:\n\npython3 -m http.server 8000';
+  });
+</script>
+</body>
+</html>

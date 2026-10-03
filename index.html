@@ -33,19 +33,37 @@
 
     #path3dStage canvas:active { cursor: grabbing; }
 
-    .hint {
+    .mode-switch {
       position: fixed;
-      left: 1rem;
-      bottom: 1rem;
-      z-index: 2;
-      margin: 0;
-      padding: 0.4rem 0.65rem;
-      background: rgba(255, 255, 255, 0.85);
-      color: #333;
-      font-size: 0.72rem;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      pointer-events: none;
+      top: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 3;
+      display: flex;
+      padding: 0.2rem;
+      gap: 0.15rem;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid #d0d0d0;
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
+    }
+
+    .mode-switch button {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: #555;
+      padding: 0.55rem 1rem;
+      font: inherit;
+      font-size: 0.8rem;
+      font-weight: 650;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .mode-switch button[aria-pressed="true"] {
+      background: #111;
+      color: #fff;
     }
 
     .lightbox {
@@ -103,7 +121,11 @@
 </head>
 <body>
   <div id="path3dStage"></div>
-  <p class="hint">Orbit · pan · WASD · Q/E · Shift · click</p>
+
+  <div class="mode-switch" role="group" aria-label="Modalità di visualizzazione">
+    <button type="button" data-mode="overview" aria-pressed="true">Volumetrica</button>
+    <button type="button" data-mode="explore" aria-pressed="false">Esplora</button>
+  </div>
 
   <div class="lightbox" id="lightbox" hidden>
     <div class="lightbox-inner">
@@ -125,7 +147,7 @@
   }
   </script>
   <script type="module">
-    import { initPath3D } from "./path3d.js?v=3";
+    import { initPath3D } from "./path3d.js?v=45";
 
     const data = window.TIMELINE_DATA;
     if (!data) {
@@ -136,6 +158,7 @@
     const lightbox = document.getElementById("lightbox");
     const stage = document.getElementById("lightboxStage");
     const lbMeta = document.getElementById("lightboxMeta");
+    const modeButtons = document.querySelectorAll(".mode-switch [data-mode]");
 
     function openLightbox(item) {
       stage.replaceChildren();
@@ -175,10 +198,24 @@
       if (e.key === "Escape") closeLightbox();
     });
 
-    initPath3D({
+    const app = initPath3D({
       container: document.getElementById("path3dStage"),
       data,
       onSelect: openLightbox,
+      initialMode: "overview",
+    });
+
+    function setUiMode(mode) {
+      for (const btn of modeButtons) {
+        btn.setAttribute("aria-pressed", btn.dataset.mode === mode ? "true" : "false");
+      }
+      app?.setMode?.(mode);
+    }
+
+    document.querySelector(".mode-switch").addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-mode]");
+      if (!btn) return;
+      setUiMode(btn.dataset.mode);
     });
   </script>
 </body>

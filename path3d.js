@@ -1,12 +1,40 @@
 /**
- * 3D Wikiloc path with media billboards at lat / lon / elevation.
+ * Peak Prompt 3D — overview (volumetric) + first-person explore along Wikiloc.
+ * Explore: far photos as exploded point-cloud mist → reform into solid as you approach → grow out.
  */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 const DEG = Math.PI / 180;
 const EARTH_R = 6378137;
-const V_EXAG = 1.35;
+const EYE_H = 1.65;
+const PHOTO_H = 3.6; // smaller so cards don't fill the viewport
+// Spacing along explore path (proportions kept).
+const PATH_COMPRESS = 0.62;
+// Lead-in before the first photo so the opening shot shows cards ahead
+const START_LEAD_M = 40;
+const START_AHEAD_M = 32;
+// Min explore gap between consecutive photos (timeline padding — not path-based)
+const MIN_EXPLORE_GAP_M = 10;
+const CLOUD_W = 308;
+const CLOUD_H = 184; // ~57k pts — +20% detail
+const MAX_ACTIVE_CLOUDS = 12;
+const SHOW_AHEAD_M = 120;
+const MAX_VISIBLE_CARDS = 22;
+// Soft white fog — cards ease in from the distance
+const FOG_NEAR_M = 32;
+const FOG_FAR_M = 110;
+// Far = fully exploded mist; approaches 0 as the photo reforms
+const DISP_MAX = PHOTO_H * 2.475;
+// Reform target (limiting side vs viewport) — solid reads clearly around here
+const REFORM_SCREEN_FRAC = 0.38;
+// Far clouds are oversized mist; they shrink to the photo footprint as they reform
+const CLOUD_FAR_SCALE = 5.1;
+const CLOUD_NEAR_SCALE = 1;
+const CLOUD_FAR_SPREAD = 1.45;
+// Light GPS denoise only — keep real bends, just kill harsh spikes
+const PATH_SMOOTH_PASSES = 1;
+const PATH_SMOOTH_RADIUS = 2;
 
 function projectFactory(track) {
   const lats = track.map((p) => p.lat);
@@ -20,27 +48,120 @@ function projectFactory(track) {
   function toVec3(lat, lon, ele) {
     const x = (lon - lon0) * DEG * EARTH_R * cosLat;
     const z = -((lat - lat0) * DEG * EARTH_R);
-    const y = ((ele ?? ele0) - ele0) * V_EXAG;
+    const y = (ele ?? ele0) - ele0;
     return new THREE.Vector3(x, y, z);
   }
-
-  return { toVec3, ele0, lat0, lon0 };
+  return { toVec3, ele0 };
 }
 
-function makePathCurve(track, toVec3) {
+function buildPath(track, toVec3) {
   const pts = track
-    .filter((p) => p.ele != null)
-    .map((p) => toVec3(p.lat, p.lon, p.ele));
-  return new THREE.CatmullRomCurve3(pts, false, "catmullrom", 0.1);
+    .filter((p) => p.ele != null && p.time)
+    .map((p) => ({
+      t: Date.parse(p.time),
+      pos: toVec3(p.lat, p.lon, p.ele),
+    }));
+  const cum = [0];
+  for (let i = 1; i < pts.length; i++) {
+    cum.push(cum[i - 1] + pts[i].pos.distanceTo(pts[i - 1].pos));
+  }
+  const total = cum[cum.length - 1] || 1;
+
+  function atDistance(d) {
+    const dist = THREE.MathUtils.clamp(d, 0, total);
+    let lo = 0;
+    let hi = cum.length - 1;
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1;
+      if (cum[mid] <= dist) lo = mid;
+      else hi = mid;
+    }
+    const span = Math.max(1e-6, cum[hi] - cum[lo]);
+    const u = (dist - cum[lo]) / span;
+    const pos = pts[lo].pos.clone().lerp(pts[hi].pos, u);
+    let tangent;
+    if (hi < pts.length - 1 && u > 0.5) {
+      tangent = pts[Math.min(hi + 1, pts.length - 1)].pos.clone().sub(pts[hi].pos);
+    } else {
+      tangent = pts[hi].pos.clone().sub(pts[lo].pos);
+    }
+    if (tangent.lengthSq() < 1e-8) tangent.set(0, 0, -1);
+    tangent.normalize();
+    return { pos, tangent, dist };
+  }
+
+  function distanceAtTime(iso) {
+    const t = Date.parse(iso);
+    if (t <= pts[0].t) return 0;
+    if (t >= pts[pts.length - 1].t) return total;
+    let lo = 0;
+    let hi = pts.length - 1;
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1;
+      if (pts[mid].t <= t) lo = mid;
+      else hi = mid;
+    }
+    const u = (t - pts[lo].t) / Math.max(1, pts[hi].t - pts[lo].t);
+    return cum[lo] + (cum[hi] - cum[lo]) * u;
+  }
+
+  return { pts, cum, total, atDistance, distanceAtTime };
 }
 
-function loadTexture(url, loader) {
+/** Light moving-average denoise for explore POV — preserves path shape */
+function buildExploreCurve(pathPts) {
+  if (pathPts.length < 2) return null;
+  let pts = pathPts.map((p) => p.pos.clone());
+  for (let pass = 0; pass < PATH_SMOOTH_PASSES; pass++) {
+    const next = pts.map((p) => p.clone());
+    for (let i = 0; i < pts.length; i++) {
+      let ax = 0;
+      let ay = 0;
+      let az = 0;
+      let wsum = 0;
+      for (let k = -PATH_SMOOTH_RADIUS; k <= PATH_SMOOTH_RADIUS; k++) {
+        const j = THREE.MathUtils.clamp(i + k, 0, pts.length - 1);
+        const w = PATH_SMOOTH_RADIUS + 1 - Math.abs(k);
+        ax += pts[j].x * w;
+        ay += pts[j].y * w;
+        az += pts[j].z * w;
+        wsum += w;
+      }
+      next[i].set(ax / wsum, ay / wsum, az / wsum);
+    }
+    pts = next;
+  }
+  return new THREE.CatmullRomCurve3(pts, false, "catmullrom", 0.15);
+}
+
+function hash01(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0) / 4294967295;
+}
+
+function loadTexture(url, loader, { forCloud = false } = {}) {
   return new Promise((resolve) => {
     loader.load(
       url,
       (tex) => {
-        tex.colorSpace = THREE.SRGBColorSpace;
-        tex.anisotropy = 4;
+        if (forCloud) {
+          // Match temp/ demo sampling for Points
+          tex.colorSpace = THREE.NoColorSpace;
+          tex.generateMipmaps = false;
+          tex.minFilter = THREE.LinearFilter;
+          tex.magFilter = THREE.LinearFilter;
+          tex.flipY = true; // same as MeshBasic plane
+        } else {
+          tex.colorSpace = THREE.SRGBColorSpace;
+          tex.anisotropy = 4;
+          tex.generateMipmaps = true;
+          tex.minFilter = THREE.LinearMipmapLinearFilter;
+          tex.magFilter = THREE.LinearFilter;
+        }
         resolve(tex);
       },
       undefined,
@@ -49,23 +170,203 @@ function loadTexture(url, loader) {
   });
 }
 
-export function initPath3D({ container, data, onSelect }) {
+function makeCloudGeometry() {
+  const n = CLOUD_W * CLOUD_H;
+  const uvs = new Float32Array(n * 2);
+  let i = 0;
+  for (let y = 0; y < CLOUD_H; y++) {
+    for (let x = 0; x < CLOUD_W; x++) {
+      uvs[i++] = (x + 0.5) / CLOUD_W;
+      uvs[i++] = (y + 0.5) / CLOUD_H;
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+  geo.setAttribute("aUv", new THREE.BufferAttribute(uvs, 2));
+  geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 80);
+  return geo;
+}
+
+function makeCloudMaterial(tex, aspect) {
+  const w = PHOTO_H * aspect;
+  const h = PHOTO_H;
+  // uSize is world-space point diameter (meters). temp/ used ~800-unit planes
+  // with uSize≈2; here the photo is ~PHOTO_H meters, so spacing ≈ PHOTO_H/CLOUD_H.
+  // uScale = viewportHeight/2 (Three.js sizeAttenuation convention).
+  const spacing = PHOTO_H / CLOUD_H;
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uColor: { value: tex },
+      uDisp: { value: 0 },
+      uSize: { value: spacing * 2.4 },
+      uSpread: { value: 1 },
+      uScale: { value: 400 },
+      uPlane: { value: new THREE.Vector2(w, h) },
+    },
+    transparent: false,
+    depthTest: true,
+    depthWrite: true,
+    toneMapped: false,
+    vertexShader: /* glsl */ `
+      attribute vec2 aUv;
+      uniform sampler2D uColor;
+      uniform float uDisp, uSize, uSpread, uScale;
+      uniform vec2 uPlane;
+      varying vec3 vColor;
+      void main() {
+        vec3 pos = vec3(
+          (aUv.x - 0.5) * uPlane.x * uSpread,
+          (aUv.y - 0.5) * uPlane.y * uSpread,
+          0.0
+        );
+        vec3 color = texture2D(uColor, aUv).rgb;
+        float lum = dot(color, vec3(0.299, 0.587, 0.114));
+        pos.z = (lum - 0.5) * uDisp;
+        vColor = color;
+        vec4 mv = modelViewMatrix * vec4(pos, 1.0);
+        gl_Position = projectionMatrix * mv;
+        // Clamp hard — near camera must never become giant discs
+        float attn = uScale / max(0.55, -mv.z);
+        gl_PointSize = clamp(uSize * attn, 1.5, 7.0);
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      precision mediump float;
+      varying vec3 vColor;
+      void main() {
+        vec2 d = gl_PointCoord - 0.5;
+        if (dot(d, d) > 0.25) discard;
+        gl_FragColor = vec4(vColor, 1.0);
+      }
+    `,
+  });
+}
+
+export function initPath3D({ container, data, onSelect, initialMode = "overview" }) {
   if (!container || !data?.track?.length) return null;
 
+  let mode = initialMode === "explore" ? "explore" : "overview";
   const track = data.track.filter((p) => p.ele != null);
-  const media = (data.media || []).filter((m) => m.lat != null && m.lon != null && m.ele != null);
+  const media = (data.media || [])
+    .filter((m) => m.time && m.lat != null && m.lon != null && m.ele != null)
+    .slice()
+    .sort((a, b) => a.time.localeCompare(b.time));
+
   const { toVec3 } = projectFactory(track);
-  const curve = makePathCurve(track, toVec3);
-  const pathPoints = curve.getPoints(Math.min(800, track.length * 2));
+  const path = buildPath(track, toVec3);
+
+  // Heavily smoothed + exaggerated curve for explore POV (overview keeps raw path)
+  const exploreCurve = buildExploreCurve(path.pts);
+  const exploreCurveLen = exploreCurve?.getLength() || path.total;
+
+  const _fA = new THREE.Vector3();
+  const _fB = new THREE.Vector3();
+  const _worldUp = new THREE.Vector3(0, 1, 0);
+  const _delta = new THREE.Vector3();
+  const _photoWorld = new THREE.Vector3();
+  const _camWorld = new THREE.Vector3();
+  const _eyePos = new THREE.Vector3();
+  const _eyeTan = new THREE.Vector3();
+  const _eyeSide = new THREE.Vector3();
+  const _eyeUp = new THREE.Vector3();
+  const _pPos = new THREE.Vector3();
+  const _pTan = new THREE.Vector3();
+  const _pSide = new THREE.Vector3();
+  const _pUp = new THREE.Vector3();
+  function writeFrame(realDist, pos, tan, side, up, useExploreCurve = true) {
+    const d = THREE.MathUtils.clamp(realDist, 0, path.total);
+    const curve = useExploreCurve ? exploreCurve : null;
+    const curveLen = useExploreCurve ? exploreCurveLen : 0;
+    if (curve && curveLen > 1e-3) {
+      const u = THREE.MathUtils.clamp(d / path.total, 0, 1);
+      // Modest tangent blend — softens spikes without flattening bends
+      const span = Math.min(0.02, 12 / curveLen);
+      const u0 = Math.max(0, u - span);
+      const u1 = Math.min(1, u + span);
+      curve.getPointAt(u, pos);
+      curve.getPointAt(u0, _fA);
+      curve.getPointAt(u1, _fB);
+      tan.copy(_fB).sub(_fA);
+      if (tan.lengthSq() < 1e-8) curve.getTangentAt(u, tan);
+    } else {
+      const sample = path.atDistance(d);
+      pos.copy(sample.pos);
+      tan.copy(sample.tangent);
+    }
+    if (tan.lengthSq() < 1e-8) tan.set(0, 0, -1);
+    tan.normalize();
+    side.crossVectors(tan, _worldUp);
+    if (side.lengthSq() < 1e-8) side.set(1, 0, 0);
+    side.normalize();
+    up.crossVectors(side, tan).normalize();
+  }
+
+  function exploreToReal(exploreDist) {
+    // Lead-in sits before path start; then map compressed explore → real meters
+    return Math.max(0, exploreDist - START_LEAD_M) / PATH_COMPRESS;
+  }
+
+  // Place each photo at time-accurate path distance, offset off-center (no phone GPS)
+  const placements = media.map((item) => {
+    const realDist = path.distanceAtTime(item.time);
+    const naturalDist = realDist * PATH_COMPRESS + START_LEAD_M;
+    // Overview uses raw path; explore framing uses smoothed curve at runtime
+    writeFrame(realDist, _pPos, _pTan, _pSide, _pUp, false);
+    const pos = _pPos.clone();
+    const tangent = _pTan.clone();
+    const side = _pSide.clone();
+
+    const h1 = hash01(item.id + ":side");
+    const h2 = hash01(item.id + ":mag");
+    const lateral = (h1 < 0.5 ? -1 : 1) * (1.4 + h2 * 4.2); // 1.4–5.6 m off path
+    const yawJitter = (hash01(item.id + ":yaw") - 0.5) * 0.4; // radians
+
+    const world = pos
+      .clone()
+      .addScaledVector(side, lateral)
+      .add(new THREE.Vector3(0, EYE_H * 0.85, 0));
+
+    return {
+      item,
+      dist: naturalDist,
+      naturalDist,
+      realDist,
+      world,
+      tangent,
+      side,
+      lateral,
+      yawJitter,
+    };
+  });
+
+  // Temporal padding: enforce a minimum explore gap so clustered shots
+  // still reform one after another without stacking.
+  {
+    let cursor = -Infinity;
+    for (const p of placements) {
+      const padded = Math.max(p.naturalDist, cursor + MIN_EXPLORE_GAP_M);
+      p.dist = padded;
+      cursor = padded;
+    }
+  }
+  const exploreTotal = Math.max(
+    path.total * PATH_COMPRESS + START_LEAD_M,
+    (placements[placements.length - 1]?.dist ?? 0) + START_AHEAD_M + 8
+  );
 
   const scene = new THREE.Scene();
-  scene.background = null; // let the page's white show through
+  scene.background = null;
 
-  const camera = new THREE.PerspectiveCamera(48, 1, 0.5, 8000);
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  const camera = new THREE.PerspectiveCamera(55, 1, 0.15, 6000);
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: true,
+    // logarithmicDepthBuffer breaks Points / gl_PointSize — keep off for the cloud
+  });
   renderer.setClearColor(0xffffff, 0);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.sortObjects = true;
   container.appendChild(renderer.domElement);
   renderer.domElement.style.background = "#fff";
 
@@ -73,11 +374,7 @@ export function initPath3D({ container, data, onSelect }) {
   controls.enableDamping = true;
   controls.dampingFactor = 0.06;
   controls.enablePan = true;
-  controls.screenSpacePanning = true; // pan on X + Y (screen space)
-  controls.panSpeed = 1.1;
-  controls.minDistance = 8;
-  controls.maxDistance = 4000;
-  controls.maxPolarAngle = Math.PI; // full orbit, including below
+  controls.screenSpacePanning = true;
   controls.autoRotate = true;
   controls.autoRotateSpeed = 0.35;
 
@@ -86,194 +383,491 @@ export function initPath3D({ container, data, onSelect }) {
   };
   controls.addEventListener("start", stopAuto);
 
-  // Keyboard fly: move camera + target on X / Y / Z
-  const keys = new Set();
-  const move = {
-    KeyW: "fwd",
-    ArrowUp: "fwd",
-    KeyS: "back",
-    ArrowDown: "back",
-    KeyA: "left",
-    ArrowLeft: "left",
-    KeyD: "right",
-    ArrowRight: "right",
-    KeyE: "up",
-    KeyR: "up",
-    KeyQ: "down",
-    KeyF: "down",
-  };
-  const worldUp = new THREE.Vector3(0, 1, 0);
-  const _fwd = new THREE.Vector3();
-  const _right = new THREE.Vector3();
-  const _delta = new THREE.Vector3();
-
-  function onKeyDown(e) {
-    if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
-    if (e.code === "ShiftLeft" || e.code === "ShiftRight") {
-      keys.add(e.code);
-      return;
-    }
-    if (!(e.code in move)) return;
-    keys.add(e.code);
-    stopAuto();
-    e.preventDefault();
-  }
-  function onKeyUp(e) {
-    keys.delete(e.code);
-  }
-  window.addEventListener("keydown", onKeyDown);
-  window.addEventListener("keyup", onKeyUp);
-
-  function applyAxisMove(dt) {
-    if (!keys.size) return;
-    const fast = keys.has("ShiftLeft") || keys.has("ShiftRight");
-    const speed = (fast ? 220 : 90) * dt;
-    _fwd.subVectors(controls.target, camera.position);
-    _fwd.y = 0;
-    if (_fwd.lengthSq() < 1e-6) _fwd.set(0, 0, -1);
-    _fwd.normalize();
-    _right.crossVectors(_fwd, worldUp).normalize();
-
-    _delta.set(0, 0, 0);
-    for (const code of keys) {
-      const dir = move[code];
-      if (dir === "fwd") _delta.addScaledVector(_fwd, speed);
-      else if (dir === "back") _delta.addScaledVector(_fwd, -speed);
-      else if (dir === "right") _delta.addScaledVector(_right, speed);
-      else if (dir === "left") _delta.addScaledVector(_right, -speed);
-      else if (dir === "up") _delta.y += speed;
-      else if (dir === "down") _delta.y -= speed;
-    }
-    if (_delta.lengthSq() === 0) return;
-    camera.position.add(_delta);
-    controls.target.add(_delta);
-  }
-
-  // Lights (neutral, no sky tint)
   scene.add(new THREE.AmbientLight(0xffffff, 1));
-  const sun = new THREE.DirectionalLight(0xffffff, 0.55);
-  sun.position.set(220, 480, 160);
-  scene.add(sun);
 
-  // Media billboards (path used only for placement, not drawn)
+  // Wikiloc path line (ground-level polyline)
+  const pathCurve = new THREE.CatmullRomCurve3(
+    path.pts.map((p) => p.pos.clone()),
+    false,
+    "catmullrom",
+    0.05
+  );
+  const pathTube = new THREE.Mesh(
+    new THREE.TubeGeometry(pathCurve, Math.min(1200, path.pts.length * 2), 1.4, 6, false),
+    new THREE.MeshBasicMaterial({ color: 0x222222 })
+  );
+  pathTube.renderOrder = -10;
+  pathTube.visible = false; // hidden for now
+  scene.add(pathTube);
+
+  // Subtle start / end markers
+  const markGeo = new THREE.SphereGeometry(3.2, 16, 16);
+  const startMark = new THREE.Mesh(markGeo, new THREE.MeshBasicMaterial({ color: 0x1f6f5b }));
+  const endMark = new THREE.Mesh(markGeo, new THREE.MeshBasicMaterial({ color: 0x8b3a2f }));
+  startMark.position.copy(path.pts[0].pos).y += 1.2;
+  endMark.position.copy(path.pts[path.pts.length - 1].pos).y += 1.2;
+  scene.add(startMark, endMark);
+
+  // Explore rig: fixed camera looking -Z; images move toward the viewer
+  const exploreRoot = new THREE.Group();
+  exploreRoot.visible = false;
+  scene.add(exploreRoot);
+
+  const explorePathGeo = new THREE.BufferGeometry();
+  const explorePathLine = new THREE.Line(
+    explorePathGeo,
+    new THREE.LineBasicMaterial({ color: 0x222222 })
+  );
+  explorePathLine.visible = false;
+  exploreRoot.add(explorePathLine);
+
   const loader = new THREE.TextureLoader();
-  const pickables = [];
-  const frameMat = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
-    side: THREE.DoubleSide,
-  });
-  const videoEdge = new THREE.MeshBasicMaterial({
-    color: 0x8b3a2f,
-    side: THREE.DoubleSide,
+  const cloudGeo = makeCloudGeometry();
+  // Placeholder so the shader always has a valid sampler
+  const placeholderTex = new THREE.DataTexture(
+    new Uint8Array([255, 255, 255, 255]),
+    1,
+    1,
+    THREE.RGBAFormat
+  );
+  placeholderTex.needsUpdate = true;
+  // Pool of clouds — several photos can dissolve together
+  const cloudPool = Array.from({ length: MAX_ACTIVE_CLOUDS }, (_, i) => {
+    const mat = makeCloudMaterial(placeholderTex, 1);
+    mat.uniforms.uScale.value = (container.clientHeight || 800) * 0.5;
+    const pts = new THREE.Points(cloudGeo, mat);
+    pts.visible = false;
+    pts.frustumCulled = false;
+    pts.renderOrder = 40 + i;
+    exploreRoot.add(pts);
+    return { pts, mat };
   });
 
-  const cluster = new Map();
-  for (const item of media) {
-    const key = `${item.lat.toFixed(5)},${item.lon.toFixed(5)},${Math.round(item.ele)}`;
-    if (!cluster.has(key)) cluster.set(key, []);
-    cluster.get(key).push(item);
+  function applyCloudSlot(slot, node, { disp, spread, scale, planeW, planeH }) {
+    const { pts, mat } = slot;
+    pts.visible = true;
+    pts.position.copy(node.group.position);
+    pts.rotation.copy(node.group.rotation);
+    pts.scale.setScalar(1);
+    mat.uniforms.uColor.value = node.dissolveTex;
+    const s = Math.max(0.2, scale);
+    const w = planeW * s;
+    const h = planeH * s;
+    mat.uniforms.uPlane.value.set(w, h);
+    mat.uniforms.uDisp.value = disp * s;
+    const spacing = h / CLOUD_H;
+    const t = THREE.MathUtils.clamp(disp / Math.max(1e-3, DISP_MAX), 0, 1);
+    mat.uniforms.uSize.value = spacing * (2.1 + t * 0.55);
+    mat.uniforms.uSpread.value = spread;
+    mat.uniformsNeedUpdate = true;
   }
 
-  async function placeItem(item, slotIndex, slotCount) {
-    const base = toVec3(item.lat, item.lon, item.ele);
-    // Nearest path tangent for offset
-    let nearestT = 0;
-    let best = Infinity;
-    for (let i = 0; i <= 40; i++) {
-      const t = i / 40;
-      const d = curve.getPointAt(t).distanceToSquared(base);
-      if (d < best) {
-        best = d;
-        nearestT = t;
+  const overviewBillboards = [];
+  const exploreNodes = []; // { placement, plane, group, tex, aspect }
+  const pickables = [];
+  const planeGeoCache = new Map(); // aspect key → geometry
+
+  let walkDist = 0;
+  let layoutRaf = 0;
+
+  function planeGeoFor(aspect) {
+    const key = aspect.toFixed(3);
+    let g = planeGeoCache.get(key);
+    if (!g) {
+      g = new THREE.PlaneGeometry(PHOTO_H * aspect, PHOTO_H);
+      planeGeoCache.set(key, g);
+    }
+    return g;
+  }
+
+  async function buildMediaVisuals() {
+    // Lighter web assets: sm for cards, md kept for the dissolve cloud
+    const jobs = placements.map(async (placement) => {
+      const { item } = placement;
+      const cardUrl = item.thumb || item.md || item.src;
+      const cloudUrl = item.md || item.thumb || item.src;
+      const [tex, cloudTex] = await Promise.all([
+        loadTexture(cardUrl, loader),
+        loadTexture(cloudUrl, loader, { forCloud: true }),
+      ]);
+      const dissolveTex = cloudTex || tex;
+      const aspect = tex?.image
+        ? (tex.image.width || 4) / (tex.image.height || 3)
+        : item.width && item.height
+          ? item.width / item.height
+          : 4 / 3;
+      const clamped = Math.min(Math.max(aspect, 0.7), 1.7);
+
+      const overviewMat = new THREE.MeshBasicMaterial({
+        map: tex,
+        color: tex ? 0xffffff : 0x888888,
+        side: THREE.DoubleSide,
+        transparent: false,
+        opacity: 1,
+        depthWrite: true,
+        toneMapped: false,
+        fog: false,
+      });
+
+      // --- overview billboard ---
+      const ov = new THREE.Mesh(planeGeoFor(clamped), overviewMat);
+      ov.scale.setScalar(8);
+      ov.position.copy(placement.world);
+      ov.position.y += 2;
+      ov.userData.item = item;
+      scene.add(ov);
+      overviewBillboards.push(ov);
+      pickables.push(ov);
+
+      // Explore card — transparent so it can fade in from the fog
+      const exploreMat = new THREE.MeshBasicMaterial({
+        map: tex,
+        color: tex ? 0xffffff : 0x888888,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 1,
+        depthWrite: true,
+        toneMapped: false,
+        fog: true,
+      });
+      const group = new THREE.Group();
+      const explorePlane = new THREE.Mesh(planeGeoFor(clamped), exploreMat);
+      explorePlane.userData.item = item;
+      group.add(explorePlane);
+      group.visible = false;
+      exploreRoot.add(group);
+      exploreNodes.push({
+        placement,
+        plane: explorePlane,
+        group,
+        tex,
+        dissolveTex,
+        aspect: clamped,
+        cardUrl,
+        cloudUrl,
+      });
+      pickables.push(explorePlane);
+    });
+    await Promise.all(jobs);
+  }
+
+  const box = new THREE.Box3().setFromPoints(placements.map((p) => p.world));
+  const overviewCenter = box.getCenter(new THREE.Vector3());
+  const overviewSize = box.getSize(new THREE.Vector3());
+  const overviewRadius = Math.max(overviewSize.x, overviewSize.y, overviewSize.z, 80) * 0.75;
+  const overviewCamPos = new THREE.Vector3(
+    overviewCenter.x + overviewRadius * 0.85,
+    overviewCenter.y + overviewRadius * 0.45,
+    overviewCenter.z + overviewRadius * 0.95
+  );
+
+  function applyOverviewCamera() {
+    controls.enabled = true;
+    controls.enablePan = true;
+    controls.enableZoom = true;
+    controls.enableRotate = true;
+    controls.autoRotate = true;
+    controls.minDistance = 8;
+    controls.maxDistance = 4000;
+    camera.fov = 48;
+    camera.near = 0.5;
+    camera.far = 8000;
+    camera.updateProjectionMatrix();
+    camera.position.copy(overviewCamPos);
+    controls.target.copy(overviewCenter);
+    controls.update();
+    scene.fog = null;
+    pathTube.visible = false;
+    startMark.visible = false;
+    endMark.visible = false;
+    exploreRoot.visible = false;
+    for (const b of overviewBillboards) b.visible = true;
+    for (const n of exploreNodes) n.group.visible = false;
+  }
+
+  function applyExploreCamera() {
+    controls.enabled = false;
+    controls.autoRotate = false;
+    camera.fov = 62;
+    camera.near = 0.15;
+    camera.far = 220;
+    camera.updateProjectionMatrix();
+    scene.fog = new THREE.Fog(0xffffff, FOG_NEAR_M, FOG_FAR_M);
+    // Fixed POV looking straight ahead (−Z)
+    camera.position.set(0, EYE_H, 0);
+    camera.up.set(0, 1, 0);
+    camera.lookAt(0, EYE_H, -10);
+    pathTube.visible = false;
+    startMark.visible = false;
+    endMark.visible = false;
+    for (const b of overviewBillboards) b.visible = false;
+    // Layout first so cards don't pop/reshuffle on the first visible frame
+    exploreRoot.visible = false;
+    updateExploreLayout();
+    exploreRoot.visible = true;
+  }
+
+  /**
+   * World size so portrait & landscape share the same limiting screen fraction
+   * at any depth (same visual footprint when they reform).
+   */
+  function planeSizeForAspect(aspect) {
+    const camA = Math.max(0.2, camera.aspect);
+    const base = PHOTO_H;
+    if (aspect >= camA) {
+      // Wider than the view — width-limited
+      const w = base * camA;
+      return { w, h: w / aspect };
+    }
+    // Taller than the view — height-limited
+    return { w: base * aspect, h: base };
+  }
+
+  function screenCoverFrac(planeW, planeH, depth) {
+    const d = Math.max(0.25, depth);
+    const vFov = THREE.MathUtils.degToRad(camera.fov);
+    const visibleH = 2 * d * Math.tan(vFov * 0.5);
+    const visibleW = visibleH * Math.max(0.2, camera.aspect);
+    return Math.max(planeW / visibleW, planeH / visibleH);
+  }
+
+  /** 0 = far exploded mist, 1 = fully reformed toward a solid photo */
+  function reformAmount(coverFrac) {
+    const u = THREE.MathUtils.clamp(
+      (coverFrac - 0.04) / Math.max(0.05, REFORM_SCREEN_FRAC - 0.04),
+      0,
+      1
+    );
+    // Gentler S-curve so collapse of the cloud tracks the rising photo
+    return u * u * (3 - 2 * u);
+  }
+
+  function smooth01(u) {
+    const t = THREE.MathUtils.clamp(u, 0, 1);
+    return t * t * (3 - 2 * t);
+  }
+
+  function updateExploreLayout() {
+    // Bidirectional: ahead>0 visible; scroll back restores images.
+    const ranked = [];
+    for (const node of exploreNodes) {
+      ranked.push({ node, ahead: node.placement.dist - walkDist });
+    }
+    ranked.sort((a, b) => a.ahead - b.ahead);
+
+    const visibleSet = new Set();
+    let aheadCount = 0;
+    for (const row of ranked) {
+      if (row.ahead <= 0 || row.ahead >= SHOW_AHEAD_M) continue;
+      if (aheadCount >= MAX_VISIBLE_CARDS) continue;
+      aheadCount++;
+      visibleSet.add(row.node);
+    }
+
+    // Camera on smoothed explore curve. During lead-in, pull back along the
+    // start tangent so cards stay fixed in world space (no Z reshuffle).
+    writeFrame(exploreToReal(walkDist), _eyePos, _eyeTan, _eyeSide, _eyeUp, true);
+    const leadPad = Math.max(0, START_LEAD_M - walkDist);
+    _camWorld
+      .copy(_eyePos)
+      .addScaledVector(_worldUp, EYE_H)
+      .addScaledVector(_eyeTan, -leadPad / Math.max(1e-6, PATH_COMPRESS));
+
+    const cloudJobs = [];
+
+    for (const node of exploreNodes) {
+      const ahead = node.placement.dist - walkDist;
+      const show = mode === "explore" && visibleSet.has(node);
+
+      if (!show || ahead <= 0) {
+        node.group.visible = false;
+        node.plane.visible = false;
+        node.plane.scale.setScalar(1);
+        continue;
+      }
+
+      // Frame at padded explore slot (not raw path dist) so timeline gaps work
+      writeFrame(exploreToReal(node.placement.dist), _pPos, _pTan, _pSide, _pUp, true);
+
+      const { w: planeW, h: planeH } = planeSizeForAspect(node.aspect);
+      // Geometry is PHOTO_H×aspect — scale mesh to the viewport-equalized footprint
+      const baseScaleX = planeW / Math.max(1e-6, PHOTO_H * node.aspect);
+      const baseScaleY = planeH / Math.max(1e-6, PHOTO_H);
+
+      // Center as the mist reforms into a readable card
+      _photoWorld.copy(_pPos).addScaledVector(_worldUp, EYE_H * 0.9);
+      _delta.copy(_photoWorld).sub(_camWorld).multiplyScalar(PATH_COMPRESS);
+      const centerDepth = Math.max(0.25, -_delta.dot(_eyeTan));
+      const centerCover = screenCoverFrac(planeW, planeH, centerDepth);
+      let centerT = 0;
+      if (centerCover > REFORM_SCREEN_FRAC * 0.55) {
+        const u = THREE.MathUtils.clamp(
+          (centerCover - REFORM_SCREEN_FRAC * 0.55) /
+            Math.max(0.05, REFORM_SCREEN_FRAC * 0.45),
+          0,
+          1
+        );
+        centerT = u * u * (3 - 2 * u);
+      }
+      const lateralNow = node.placement.lateral * (1 - centerT);
+      const yawNow = node.placement.yawJitter * (1 - centerT);
+
+      _photoWorld
+        .copy(_pPos)
+        .addScaledVector(_pSide, lateralNow)
+        .addScaledVector(_worldUp, EYE_H * 0.9);
+
+      _delta.copy(_photoWorld).sub(_camWorld).multiplyScalar(PATH_COMPRESS);
+      const lx = _delta.dot(_eyeSide);
+      const ly = _delta.dot(_eyeUp) * 0.85;
+      const lz = -_delta.dot(_eyeTan);
+
+      // Path fold this frame only — hide, but scroll-back can show it again
+      if (lz > -0.12) {
+        node.group.visible = false;
+        node.plane.visible = false;
+        continue;
+      }
+
+      node.group.visible = true;
+      node.group.position.set(lx, EYE_H + ly, lz);
+      const faceYaw = Math.atan2(lx, Math.max(0.2, -lz));
+      node.group.rotation.set(0, faceYaw * 0.25 + yawNow, 0);
+      node.group.renderOrder = Math.round(10 + Math.max(0, 200 - ahead));
+
+      const viewDepth = Math.max(0.15, -lz);
+      const coverFrac = screenCoverFrac(planeW, planeH, viewDepth);
+      const reformT = reformAmount(coverFrac);
+      // Collapse mist first; photo only appears as points settle onto the plane
+      const dispFactor = Math.pow(1 - reformT, 1.15);
+      const depthCap = Math.max(0.35, viewDepth * 0.88);
+      const disp = Math.min(dispFactor * DISP_MAX, depthCap, DISP_MAX);
+      const cloudScale = THREE.MathUtils.lerp(CLOUD_FAR_SCALE, CLOUD_NEAR_SCALE, smooth01(reformT));
+      const cloudSpread = THREE.MathUtils.lerp(CLOUD_FAR_SPREAD, 1, smooth01(reformT));
+      // Plane starts late — avoids “solid behind / points flying toward it”
+      const settled = 1 - dispFactor; // 0 exploded → 1 flat
+      const planeReveal = smooth01((settled - 0.55) / 0.4);
+      const showCloud = !!node.dissolveTex && dispFactor > 0.04;
+      const showPlane = planeReveal > 0.02;
+
+      // Exit: grow out of frame — no opacity fade
+      let grow = 1;
+      if (settled > 0.92) {
+        const exitU = THREE.MathUtils.clamp(
+          (coverFrac - REFORM_SCREEN_FRAC) / Math.max(0.05, 0.75),
+          0,
+          1
+        );
+        grow = 1 + smooth01(exitU) * 2.4;
+      }
+
+      if (showCloud) {
+        cloudJobs.push({
+          node,
+          ahead,
+          disp,
+          spread: cloudSpread,
+          scale: cloudScale,
+          planeW,
+          planeH,
+        });
+      }
+
+      if (showPlane) {
+        node.plane.visible = true;
+        node.plane.scale.set(baseScaleX * grow, baseScaleY * grow, 1);
+        node.plane.material.opacity = settled > 0.95 ? 1 : planeReveal;
+        node.plane.material.depthWrite = planeReveal > 0.9;
+        node.plane.material.transparent = planeReveal < 0.99;
+        // Same depth band as the cloud so it replaces points, not sit behind them
+        node.plane.renderOrder = Math.round(8 + Math.max(0, 180 - ahead));
+        if (ahead < 0.35 || grow > 3.1) {
+          node.group.visible = false;
+          node.plane.visible = false;
+        }
+      } else {
+        node.plane.visible = false;
+        node.plane.scale.set(baseScaleX, baseScaleY, 1);
       }
     }
-    const tan = curve.getTangentAt(nearestT).normalize();
-    const side = new THREE.Vector3().crossVectors(tan, new THREE.Vector3(0, 1, 0));
-    if (side.lengthSq() < 1e-6) side.set(1, 0, 0);
-    side.normalize();
 
-    const sideSign = slotIndex % 2 === 0 ? 1 : -1;
-    const row = Math.floor(slotIndex / 2);
-    const pos = base
-      .clone()
-      .addScaledVector(side, sideSign * (70 + row * 15))
-      .add(new THREE.Vector3(0, 50 + row * 40 + (item.kind === "video" ? 10 : 0), 0))
-      .addScaledVector(tan, (slotIndex - (slotCount - 1) / 2) * 12.5);
+    // Prefer near collapsing clouds + far mist
+    cloudJobs.sort((a, b) => a.ahead - b.ahead);
+    const nearSlots = Math.min(5, MAX_ACTIVE_CLOUDS);
+    const near = cloudJobs.slice(0, nearSlots);
+    const far = cloudJobs.slice(nearSlots).sort((a, b) => b.ahead - a.ahead);
+    const picked = near.concat(far).slice(0, MAX_ACTIVE_CLOUDS);
 
-    const thumb = item.md || item.thumb || item.src;
-    const tex = await loadTexture(thumb, loader);
-    const aspect = tex?.image
-      ? (tex.image.width || 4) / (tex.image.height || 3)
-      : item.width && item.height
-        ? item.width / item.height
-        : 4 / 3;
-    const h = 60; // 5× previous size (12)
-    const w = h * Math.min(Math.max(aspect, 0.7), 1.7);
-
-    const group = new THREE.Group();
-    group.position.copy(pos);
-
-    const frame = new THREE.Mesh(
-      new THREE.PlaneGeometry(w + 3.5, h + 3.5),
-      item.kind === "video" ? videoEdge : frameMat
-    );
-    frame.position.z = -0.25;
-    group.add(frame);
-
-    const mat = new THREE.MeshBasicMaterial({
-      map: tex,
-      color: tex ? 0xffffff : item.kind === "video" ? 0x8b3a2f : 0x6b7c84,
-      side: THREE.DoubleSide,
-      toneMapped: false,
-    });
-    const plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
-    plane.userData.item = item;
-    group.add(plane);
-
-    // Face roughly outward from path center
-    group.lookAt(pos.clone().add(side.clone().multiplyScalar(sideSign * 20)));
-    group.rotateY(Math.PI);
-
-    scene.add(group);
-    pickables.push(plane);
+    for (let i = 0; i < cloudPool.length; i++) {
+      const job = picked[i];
+      if (job) {
+        applyCloudSlot(cloudPool[i], job.node, job);
+        cloudPool[i].pts.renderOrder = 45 + i;
+      } else {
+        cloudPool[i].pts.visible = false;
+      }
+    }
   }
 
-  const jobs = [];
-  for (const items of cluster.values()) {
-    items.forEach((item, i) => jobs.push(placeItem(item, i, items.length)));
+  function setMode(next) {
+    mode = next === "explore" ? "explore" : "overview";
+    container.dataset.mode = mode;
+    stopAuto();
+    if (mode === "explore") {
+      const first = placements[0]?.dist ?? START_LEAD_M;
+      // Start further back so the first cards are clearly visible ahead
+      walkDist = Math.max(0, first - START_AHEAD_M);
+      for (const slot of cloudPool) slot.pts.visible = false;
+      applyExploreCamera();
+    } else {
+      applyOverviewCamera();
+    }
+    return mode;
   }
 
-  // Fit camera
-  const box = new THREE.Box3().setFromPoints(pathPoints);
-  const center = box.getCenter(new THREE.Vector3());
-  const size = box.getSize(new THREE.Vector3());
-  const radius = Math.max(size.x, size.y, size.z) * 0.65;
-  camera.position.set(center.x + radius * 0.85, center.y + radius * 0.55, center.z + radius * 0.95);
-  controls.target.copy(center);
-  controls.update();
+  // Scroll moves images; layout updates once per animation frame
+  function onWheel(e) {
+    if (mode !== "explore") return;
+    e.preventDefault();
+    const step = Math.sign(e.deltaY) * Math.min(4.5, Math.abs(e.deltaY) * 0.02);
+    walkDist = THREE.MathUtils.clamp(walkDist + step, 0, exploreTotal);
+    if (!layoutRaf) {
+      layoutRaf = requestAnimationFrame(() => {
+        layoutRaf = 0;
+        updateExploreLayout();
+      });
+    }
+  }
+  renderer.domElement.addEventListener("wheel", onWheel, { passive: false });
 
   // Picking
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   let hover = null;
+  let downX = 0;
+  let downY = 0;
 
   function setHover(next) {
     if (hover === next) return;
     if (hover) hover.scale.setScalar(1);
     hover = next;
-    if (hover) hover.scale.setScalar(1.08);
-    container.style.cursor = hover ? "pointer" : "grab";
+    if (hover && mode === "overview") hover.scale.setScalar(1.05);
+    container.style.cursor = hover ? "pointer" : mode === "explore" ? "default" : "grab";
   }
 
-  let downX = 0;
-  let downY = 0;
-
   function onPointerMove(e) {
+    if (mode === "explore") {
+      setHover(null);
+      return;
+    }
     const rect = renderer.domElement.getBoundingClientRect();
     pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(pointer, camera);
-    const hits = raycaster.intersectObjects(pickables, false);
+    const hits = raycaster.intersectObjects(
+      overviewBillboards.filter((b) => b.visible),
+      false
+    );
     setHover(hits[0]?.object || null);
   }
 
@@ -284,6 +878,17 @@ export function initPath3D({ container, data, onSelect }) {
 
   function onClick(e) {
     if (Math.hypot(e.clientX - downX, e.clientY - downY) > 5) return;
+    if (mode === "explore") {
+      // pick nearest visible explore plane
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const meshes = exploreNodes.filter((n) => n.plane.visible).map((n) => n.plane);
+      const hits = raycaster.intersectObjects(meshes, false);
+      if (hits[0]?.object?.userData?.item) onSelect?.(hits[0].object.userData.item);
+      return;
+    }
     if (!hover?.userData?.item) return;
     stopAuto();
     onSelect?.(hover.userData.item);
@@ -299,46 +904,70 @@ export function initPath3D({ container, data, onSelect }) {
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     renderer.setSize(w, h, false);
+    for (const slot of cloudPool) slot.mat.uniforms.uScale.value = h * 0.5;
+    if (mode === "explore") updateExploreLayout();
   }
-
   const ro = new ResizeObserver(resize);
   ro.observe(container);
   resize();
 
+  const _camPos = new THREE.Vector3();
   let raf = 0;
-  let lastT = performance.now();
-  function tick(now) {
+  function tick() {
     raf = requestAnimationFrame(tick);
-    const dt = Math.min(0.05, (now - lastT) / 1000);
-    lastT = now;
-    applyAxisMove(dt);
-    controls.update();
-    // Soft billboard yaw toward camera for readability
-    for (const plane of pickables) {
-      const g = plane.parent;
-      if (!g) continue;
-      const p = g.position;
-      const cam = camera.position;
-      const flat = new THREE.Vector3(cam.x - p.x, 0, cam.z - p.z);
-      if (flat.lengthSq() > 1) {
-        const yaw = Math.atan2(flat.x, flat.z);
-        g.rotation.y = yaw + Math.PI;
+    if (mode === "overview") {
+      controls.update();
+      camera.getWorldPosition(_camPos);
+      for (const obj of overviewBillboards) {
+        obj.quaternion.copy(camera.quaternion);
+        obj.renderOrder = -obj.position.distanceToSquared(_camPos);
       }
     }
     renderer.render(scene, camera);
   }
-  tick(performance.now());
 
-  Promise.all(jobs).then(() => {
+  // Boot
+  applyOverviewCamera();
+  tick();
+  buildMediaVisuals().then(() => {
     container.dataset.ready = "true";
+    setMode(mode);
+    resize();
   });
 
+  window.__PP_DEBUG = () => {
+    const visible = exploreNodes
+      .filter((n) => n.group.visible)
+      .slice(0, 6)
+      .map((n) => ({
+        ahead: +(n.placement.dist - walkDist).toFixed(2),
+        pos: n.group.position.toArray().map((v) => +v.toFixed(2)),
+      }));
+    const clouds = cloudPool
+      .filter((s) => s.pts.visible)
+      .map((s) => ({
+        disp: +s.mat.uniforms.uDisp.value.toFixed(2),
+        pos: s.pts.position.toArray().map((v) => +v.toFixed(2)),
+      }));
+    return {
+      mode,
+      walkDist,
+      exploreTotal,
+      compress: PATH_COMPRESS,
+      clouds,
+      nodes: exploreNodes.length,
+      firstDist: placements[0]?.dist ?? null,
+      visible,
+    };
+  };
+
   return {
+    setMode,
+    getMode: () => mode,
     dispose() {
       cancelAnimationFrame(raf);
       ro.disconnect();
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
+      renderer.domElement.removeEventListener("wheel", onWheel);
       controls.dispose();
       renderer.dispose();
       renderer.domElement.remove();
