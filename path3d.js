@@ -404,6 +404,8 @@ export function initPath3D({
   onExploreAutoplayChange,
   onModeChange,
   onHoverItem,
+  onExploreProgress,
+  onTransitionChange,
   onIntroProgress,
   onIntroComplete,
   checkpointIconSrc,
@@ -524,7 +526,7 @@ export function initPath3D({
   }
 
   // Place each media at time-accurate path distance, offset off-center
-  const placements = media.map((item) => {
+  const placements = media.map((item, index) => {
     const realDist = path.distanceAtTime(item.time);
     const naturalDist = realDist * PATH_COMPRESS + START_LEAD_M;
     writeFrame(realDist, _pPos, _pTan, _pSide, _pUp, "raw");
@@ -536,7 +538,7 @@ export function initPath3D({
       .clone()
       .addScaledVector(_pSide, lateral)
       .add(new THREE.Vector3(0, EYE_H * 0.85, 0));
-    return { item, dist: naturalDist, naturalDist, realDist, world, lateral, yawJitter };
+    return { item, index, dist: naturalDist, naturalDist, realDist, world, lateral, yawJitter };
   });
 
   // Enforce min explore gap so clustered shots each get a full animation window
@@ -691,6 +693,9 @@ export function initPath3D({
   let layoutRaf = 0;
   let camTransition = null; // overview → explore fly-in state
   let landingIntro = null; // base→peak reveal on first load
+  // Keep white veil + hide overview until the landing intro actually starts
+  // (prevents a one-frame flash of the full model after textures load)
+  let pendingLandingIntro = mode === "overview";
   let exploreAutoplay = false;
   let autoplayLastMs = 0;
   // Soft follow of a linear target — avoids wall-clock catch-up jumps on heavy frames
@@ -894,6 +899,8 @@ export function initPath3D({
       quatFromAccel(item.accel || DEFAULT_ACCEL, _ovLook, _ovQuat);
       ovGroup.quaternion.copy(_ovQuat);
 
+      // Hidden until landing reveal owns visibility (avoids preload flash)
+      if (pendingLandingIntro) ovGroup.visible = false;
       scene.add(ovGroup);
       overviewBillboards.push(pick);
       overviewNodes.push({
@@ -998,7 +1005,8 @@ export function initPath3D({
   // target, the visible marker is an HTML pin projected on top of the canvas
   const checkpointMarkers = [];
   const checkpointPins = [];
-  const MORPH_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  const MORPH_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz0123456789#%*+=";
+  const CP_MORPH_MS = 1100; // dedicated scramble window once a pin appears
   {
     const markGeo = new THREE.CircleGeometry(6.5, 28);
     const markMat = new THREE.MeshBasicMaterial({ visible: false });
@@ -1009,6 +1017,7 @@ export function initPath3D({
       mesh.position.copy(p.overviewWorld);
       mesh.userData.item = p.item;
       mesh.userData.checkpoint = true;
+      mesh.userData.checkpointIndex = i;
       mesh.visible = false;
       scene.add(mesh);
       checkpointMarkers.push(mesh);
@@ -1017,6 +1026,8 @@ export function initPath3D({
       pin.type = "button";
       pin.className = "checkpoint-pin";
       pin.hidden = true;
+      pin.disabled = true;
+      pin.classList.add("is-locked");
       pin.style.opacity = "0";
       if (checkpointIconSrc) {
         const icon = document.createElement("img");
@@ -1029,7 +1040,7 @@ export function initPath3D({
       label.textContent = "";
       pin.appendChild(label);
       pin.addEventListener("click", () => {
-        if (landingIntro) return;
+        if (landingIntro || !isCheckpointUnlocked(i)) return;
         goToCheckpoint(p.item.id);
       });
       pin.addEventListener("pointerenter", () => onHoverItem?.(p.item));
@@ -1043,15 +1054,32 @@ export function initPath3D({
         ele: p.item.ele ?? 0,
         jitter: hash01(id + ":cp-intro"),
         reveal: 0,
+        morphStart: null,
       });
     });
+  }
+
+  // Checkpoints unlock in order as the explore walk reaches them (driven by the page)
+  let unlockedCheckpoints = 0;
+  function isCheckpointUnlocked(index) {
+    return index < unlockedCheckpoints;
+  }
+  function setUnlockedCheckpoints(count) {
+    unlockedCheckpoints = count;
+    for (const { pin, mesh } of checkpointPins) {
+      const locked = !isCheckpointUnlocked(mesh.userData.checkpointIndex);
+      pin.disabled = locked;
+      pin.classList.toggle("is-locked", locked);
+    }
   }
 
   function morphLabel(target, t, seed) {
     if (t <= 0.001) return "";
     if (t >= 0.999) return target;
-    const resolved = Math.floor(t * target.length);
-    const tick = (t * 28) | 0;
+    // Full scramble for longer, then resolve L→R (reads more like a decode)
+    const resolveU = THREE.MathUtils.smoothstep(t, 0.38, 1);
+    const resolved = Math.floor(Math.pow(resolveU, 1.25) * target.length);
+    const tick = (t * 56) | 0;
     let out = "";
     for (let i = 0; i < target.length; i++) {
       const ch = target[i];
@@ -1072,6 +1100,7 @@ export function initPath3D({
   function updateCheckpointPins() {
     const w = renderer.domElement.clientWidth;
     const h = renderer.domElement.clientHeight;
+    const now = performance.now();
     for (const cp of checkpointPins) {
       const { pin, mesh, label, targetText } = cp;
       _pinNdc.copy(mesh.position).project(camera);
@@ -1084,7 +1113,16 @@ export function initPath3D({
       const y = (-_pinNdc.y * 0.5 + 0.5) * h;
       pin.style.transform = `translate(${x}px, ${y}px) translate(-5.8px, -50%)`;
       pin.style.opacity = String(reveal);
-      label.textContent = morphLabel(targetText, reveal, targetText);
+
+      let morphT = 1;
+      if (landingIntro) {
+        if (reveal > 0.08 && cp.morphStart == null) cp.morphStart = now;
+        morphT =
+          cp.morphStart != null
+            ? THREE.MathUtils.clamp((now - cp.morphStart) / CP_MORPH_MS, 0, 1)
+            : 0;
+      }
+      label.textContent = morphLabel(targetText, morphT, targetText);
     }
   }
 
@@ -1099,9 +1137,16 @@ export function initPath3D({
         timeLocal: p.item.timeLocal,
         ele: p.item.ele,
         dist: p.dist,
+        arriveDist: checkpointArriveDist(p),
         item: p.item,
       };
     }).filter(Boolean);
+  }
+
+  // Stop a bit before the shot so the card is ahead in view
+  const CHECKPOINT_LEAD_M = 28;
+  function checkpointArriveDist(p) {
+    return THREE.MathUtils.clamp(p.dist - CHECKPOINT_LEAD_M, 0, exploreTotal);
   }
 
   function goToCheckpoint(id) {
@@ -1109,8 +1154,7 @@ export function initPath3D({
     if (!p) return false;
     if (mode !== "explore" || camTransition) setMode("explore", { animate: false });
     else setExploreAutoplay(false);
-    // Stop a bit before the shot so the card is ahead in view
-    walkDist = THREE.MathUtils.clamp(p.dist - 28, 0, exploreTotal);
+    walkDist = checkpointArriveDist(p);
     updateExploreLayout();
     return true;
   }
@@ -1179,6 +1223,7 @@ export function initPath3D({
 
   function cancelCamTransition() {
     camTransition = null;
+    onTransitionChange?.(false);
     if (!landingIntro) setViewFade(0);
     resetOverviewMistWash();
   }
@@ -1231,6 +1276,8 @@ export function initPath3D({
   function beginLandingIntro() {
     const eles = placements.map((p) => p.item.ele).filter((e) => e != null);
     if (!eles.length || mode !== "overview") {
+      pendingLandingIntro = false;
+      setViewFade(0);
       onIntroComplete?.();
       return;
     }
@@ -1244,12 +1291,14 @@ export function initPath3D({
       eleMax,
       band,
     };
+    pendingLandingIntro = false;
     controls.enabled = false;
     controls.autoRotate = true;
     setViewFade(1);
     applyLandingReveal(eleMin - band * 0.5, band);
     for (const cp of checkpointPins) {
       cp.reveal = 0;
+      cp.morphStart = null;
       cp.mesh.visible = false;
       cp.label.textContent = "";
       cp.pin.style.opacity = "0";
@@ -1354,6 +1403,7 @@ export function initPath3D({
         overviewSphere.radius * 0.08
       );
 
+    onTransitionChange?.(true, { durationMs: ENTER_EXPLORE_MS });
     camTransition = {
       t0: performance.now(),
       dur: ENTER_EXPLORE_MS,
@@ -1439,6 +1489,7 @@ export function initPath3D({
       if (!camTransition.handedOff) handoffToExplore(camTransition.endWalk);
       setViewFade(0);
       camTransition = null;
+      onTransitionChange?.(false);
       return true;
     }
     return true;
@@ -1472,19 +1523,21 @@ export function initPath3D({
   }
 
   function applyOverviewCamera() {
-    const introLock = !!landingIntro;
-    controls.enabled = !introLock;
+    const veilLock = !!landingIntro || pendingLandingIntro;
+    controls.enabled = !veilLock;
     controls.enablePan = true;
     controls.enableZoom = true;
     controls.enableRotate = true;
     controls.autoRotate = true;
-    if (!introLock) setViewFade(0);
-    if (!introLock) resetOverviewMistWash();
+    // Stay white while waiting for / playing the landing intro
+    if (!veilLock) setViewFade(0);
+    else setViewFade(1);
+    if (!veilLock) resetOverviewMistWash();
     frameOverviewToFit();
     scene.fog = null;
     exploreRoot.visible = false;
-    // Don't clobber an in-flight base→peak reveal
-    if (!introLock) {
+    // Don't clobber an in-flight / pending base→peak reveal
+    if (!veilLock) {
       for (const n of overviewNodes) {
         n.group.visible = true;
         n.group.scale.setScalar(1);
@@ -1500,6 +1553,15 @@ export function initPath3D({
         cp.reveal = 1;
         cp.pin.style.opacity = "1";
         if (cp.label) cp.label.textContent = cp.targetText;
+      }
+    } else {
+      for (const n of overviewNodes) n.group.visible = false;
+      for (const m of checkpointMarkers) m.visible = false;
+      for (const cp of checkpointPins) {
+        cp.reveal = 0;
+        cp.morphStart = null;
+        cp.pin.style.opacity = "0";
+        cp.pin.hidden = true;
       }
     }
     for (const n of exploreNodes) n.group.visible = false;
@@ -1590,6 +1652,8 @@ export function initPath3D({
 
     const cloudJobs = [];
     const maxClouds = exploreAutoplay ? AUTOPLAY_MAX_CLOUDS : MAX_ACTIVE_CLOUDS;
+    // Nearest image that is fully formed (or still dissolving away)
+    let formed = null;
 
     for (const node of exploreNodes) {
       const ahead = node.placement.dist - walkDist;
@@ -1734,6 +1798,8 @@ export function initPath3D({
           node.group.visible = false;
           node.hiPlane.visible = false;
           stopNodeVideo(node);
+        } else if (dissolving ? planeOpacity > 0.05 : planeOpacity >= 0.95) {
+          formed ??= node.placement;
         }
       } else {
         node.hiPlane.visible = false;
@@ -1742,6 +1808,14 @@ export function initPath3D({
         stopNodeVideo(node);
       }
     }
+
+    onExploreProgress?.({
+      walkDist,
+      formedItem: formed?.item ?? null,
+      formedIndex: formed?.index ?? -1,
+      total: placements.length,
+      atEnd: walkDist >= exploreTotal - 0.5,
+    });
 
     // Prefer near collapsing clouds + far mist
     cloudJobs.sort((a, b) => a.ahead - b.ahead);
@@ -1820,7 +1894,15 @@ export function initPath3D({
       hover.scale.setScalar(hover.userData.baseScale ?? 1);
     }
     hover = next;
-    container.style.cursor = hover ? "pointer" : mode === "explore" ? "default" : "grab";
+    const lockedCheckpoint =
+      hover?.userData?.checkpoint && !isCheckpointUnlocked(hover.userData.checkpointIndex);
+    container.style.cursor = lockedCheckpoint
+      ? "default"
+      : hover
+        ? "pointer"
+        : mode === "explore"
+          ? "default"
+          : "grab";
     onHoverItem?.(hover?.userData?.item ?? null);
   }
 
@@ -1865,7 +1947,7 @@ export function initPath3D({
       return;
     }
     if (hover?.userData?.checkpoint) {
-      goToCheckpoint(hover.userData.item.id);
+      if (isCheckpointUnlocked(hover.userData.checkpointIndex)) goToCheckpoint(hover.userData.item.id);
       return;
     }
     if (!hover?.userData?.item) return;
@@ -1962,11 +2044,13 @@ export function initPath3D({
   buildMediaVisuals().then(() => {
     container.dataset.ready = "true";
     if (mode === "explore") {
+      pendingLandingIntro = false;
       setMode("explore", { animate: false });
       resize();
       onIntroComplete?.();
       return;
     }
+    // Keep veilLock through setMode so the full mass never paints for a frame
     setMode("overview", { animate: false });
     resize();
     beginLandingIntro();
@@ -2020,6 +2104,7 @@ export function initPath3D({
     getExploreAutoplaySpeed: () => autoplaySpeedMul,
     getCheckpoints,
     goToCheckpoint,
+    setUnlockedCheckpoints,
     setNightMode(on) {
       nightMode = !!on;
       applyBackground();

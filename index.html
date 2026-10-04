@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="it" data-mode="overview">
+<html lang="it" data-mode="overview" data-explore-ready>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
@@ -113,8 +113,15 @@
       font-variant-numeric: tabular-nums;
       min-width: 11ch;
     }
-    .checkpoint-pin:hover span,
-    .checkpoint-pin:focus-visible span { text-decoration: underline; }
+    .checkpoint-pin:not(:disabled):hover span,
+    .checkpoint-pin:not(:disabled):focus-visible span { text-decoration: underline; }
+
+    /* Locked until the explore walk reaches it — grey like the explore row */
+    .checkpoint-pin.is-locked {
+      color: color-mix(in srgb, var(--fg) 50%, transparent);
+      cursor: default;
+    }
+    .checkpoint-pin.is-locked img { opacity: 0.5; }
 
     /* Page chrome */
     .site-title {
@@ -126,7 +133,7 @@
       margin: 0;
       color: #fff;
       mix-blend-mode: difference;
-      font-size: 24px;
+      font-size: 20px;
       font-weight: 350;
       line-height: normal;
       white-space: nowrap;
@@ -139,7 +146,7 @@
       left: var(--edge);
       z-index: 3;
       margin: 0;
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 400;
       line-height: normal;
       white-space: nowrap;
@@ -153,7 +160,7 @@
       z-index: 3;
       color: #fff;
       mix-blend-mode: exclusion;
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 400;
       line-height: normal;
       transition: opacity 0.2s ease;
@@ -165,22 +172,23 @@
       outline: none;
     }
 
-    .explore-cta {
+    .explore-cta,
+    .explore-outro {
       position: fixed;
-      top: calc(50% - 31.2px);
+      top: calc(50% - 40px);
       left: 50%;
       transform: translateX(-50%);
       z-index: 3;
       color: #000;
       mix-blend-mode: exclusion;
-      font-size: 48px;
+      font-size: 56px;
       font-weight: 350;
       line-height: normal;
       white-space: nowrap;
       text-decoration: underline;
-      text-decoration-thickness: 3px;
+      text-decoration-thickness: 4px;
       text-underline-position: auto;        /* la linea torna a passare attraverso le discendenti */
-      text-underline-offset: 10px;           /* distanza dalla linea di base: regola a piacere */
+      text-underline-offset: 11px;           /* distanza dalla linea di base: regola a piacere */
       text-decoration-skip-ink: auto;       /* il browser interrompe la linea attorno alle discendenti */
       text-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
       opacity: 0;
@@ -190,8 +198,28 @@
     .explore-cta.is-ready {
       opacity: 1;
       pointer-events: auto;
+      filter: invert(0);
+      transition: filter 0.4s ease;
     }
 
+    .explore-cta.is-ready:hover,
+    .explore-cta.is-ready:focus-visible {
+      filter: invert(1);
+      outline: none;
+    }
+
+    /* End of the walk — wraps on several lines, centred, not interactive */
+    .explore-outro {
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: min(1100px, calc(100% - 2 * var(--edge)));
+      white-space: normal;
+      text-align: center;
+    }
+
+    html:not([data-mode="explore"]) .explore-outro { display: none; }
+
+    html.night .explore-outro,
     html.night .explore-cta {
       text-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
     }
@@ -202,11 +230,11 @@
       left: 50%;
       transform: translateX(-50%);
       z-index: 3;
-      width: min(1068px, calc(100% - 2 * var(--edge)));
+      width: min(1200px, calc(100% - 2 * var(--edge)));
       display: grid;
       gap: 5.2px;
       color: #000;
-      font-size: 10px;
+      font-size: 12px;
       font-weight: 500;
       line-height: normal;
       text-align: center;
@@ -222,62 +250,111 @@
       justify-content: center;
     }
 
-    /* Explore mode (not in the Figma frame yet — same type system) */
+    /* Explore mode */
+    html[data-mode="explore"] .site-title { font-weight: 400; }
+
+    /* Explore chrome waits for the fly-in to land */
+    .explore-checkpoints,
+    .explore-footer {
+      transition: opacity 0.4s ease;
+    }
+
+    html:not([data-explore-ready]) .explore-checkpoints,
+    html:not([data-explore-ready]) .explore-meta,
+    html:not([data-explore-ready]) .explore-footer {
+      opacity: 0;
+      pointer-events: none;
+    }
+
     .back-to-overview {
       position: fixed;
       top: 15px;
       left: var(--edge);
       z-index: 3;
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 400;
       line-height: normal;
     }
 
-    .explore-play {
+    .explore-checkpoints {
       position: fixed;
-      bottom: var(--edge);
-      left: 50%;
-      transform: translateX(-50%);
+      top: 50px;
+      left: 25px;
       z-index: 3;
-      font-size: 16px;
-      font-weight: 400;
-      line-height: normal;
-    }
-
-    .explore-play[aria-pressed="true"] { text-decoration: underline; }
-
-    .checkpoint-list {
-      position: fixed;
-      top: 50%;
-      left: var(--edge);
-      transform: translateY(-50%);
-      z-index: 3;
+      width: calc(100% - 2 * var(--edge));
       display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      max-height: calc(100vh - 220px);
-      overflow-y: auto;
+      justify-content: space-between;
+      align-items: center;
+      mix-blend-mode: exclusion;
     }
 
-    .checkpoint-list button {
+    .explore-checkpoints button {
+      color: rgba(255, 255, 255, 0.5);
       font-family: var(--font-label);
       font-size: 12px;
       font-weight: 500;
       line-height: normal;
-      text-align: left;
       white-space: nowrap;
     }
 
-    .checkpoint-list button:hover,
-    .checkpoint-list button:focus-visible {
+    /* Grey = still locked; reaching a checkpoint unlocks it for good */
+    .explore-checkpoints button:disabled { cursor: default; }
+    .explore-checkpoints button.is-unlocked { color: #fff; }
+
+    .explore-checkpoints button:not(:disabled):hover,
+    .explore-checkpoints button:not(:disabled):focus-visible {
       text-decoration: underline;
       outline: none;
     }
 
-    html:not([data-mode="explore"]) .back-to-overview,
-    html:not([data-mode="explore"]) .explore-play,
-    html:not([data-mode="explore"]) .checkpoint-list,
-    html[data-mode="explore"] .current-coords,
+    .explore-meta {
+      position: fixed;
+      top: calc(50% - 6px);
+      left: var(--edge);
+      right: var(--edge);
+      z-index: 3;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--fg);
+      font-size: 14px;
+      font-weight: 500;
+      line-height: normal;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    /* Image info only while its image is formed */
+    .explore-meta.is-hidden { opacity: 0; }
+
+    .explore-footer {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 3;
+      width: 325px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: normal;
+      text-align: center;
+    }
+
+    .explore-footer button:hover,
+    .explore-footer button:focus-visible,
+    .explore-footer button[aria-pressed="true"] {
+      text-decoration: underline;
+      outline: none;
+    }
+
+    html:not([data-mode="explore"]) .explore-checkpoints,
+    html:not([data-mode="explore"]) .explore-meta,
+    html:not([data-mode="explore"]) .explore-footer,
     html[data-mode="explore"] .explore-cta,
     html[data-mode="explore"] .site-footer {
       display: none;
@@ -339,14 +416,14 @@
 
   <h1 class="site-title chrome-fade">PEAK PROMPT</h1>
 
-  <p class="current-coords chrome-fade" id="currentCoords" aria-live="polite">*current coordinates*</p>
+  <p class="current-coords chrome-fade" id="currentCoords" aria-live="polite">*coordinates*</p>
 
   <button type="button" class="night-toggle chrome-fade" id="nightToggle" aria-pressed="false">LIGHT</button>
 
   <button type="button" class="explore-cta" id="exploreCta" data-mode="explore" aria-hidden="true"></button>
 
   <footer class="site-footer chrome-fade">
-    <p>We all walk the same path, but for each of us it’s a different experience.<br />
+    <p>Peak Prompt (case study n.2)<br />
       The workshop is organised by Pittogramma (<a href="https://www.instagram.com/pittogramma.xyz/" target="_blank" rel="noopener">@pittogramma.xyz</a>) and led by Giga (<a href="https://www.instagram.com/gigadesignstudio/" target="_blank" rel="noopener">@gigadesignstudio</a>), a studio where design and technology merge into a creative synthesis.</p>
     <div class="site-footer-meta">
       <span>3—days workshop</span>
@@ -355,11 +432,24 @@
     </div>
   </footer>
 
-  <button type="button" class="back-to-overview" data-mode="overview">← overview</button>
+  <button type="button" class="back-to-overview" id="backToOverview" data-mode="overview" hidden>← GO BACK</button>
 
-  <button type="button" class="explore-play" id="explorePlay" aria-pressed="false">play 15×</button>
+  <nav class="explore-checkpoints" id="checkpointList" aria-label="Checkpoint"></nav>
 
-  <nav class="checkpoint-list" id="checkpointList" aria-label="Checkpoint"></nav>
+  <div class="explore-meta is-hidden" id="exploreMeta" aria-live="polite">
+    <span id="metaTime"></span>
+    <span id="metaNumber"></span>
+    <span id="metaName"></span>
+    <span id="metaCoords"></span>
+  </div>
+
+  <p class="explore-outro" id="exploreOutro" aria-live="polite"></p>
+
+  <div class="explore-footer">
+    <button type="button" id="explorePlay" aria-pressed="false">AUTOPLAY (x1)</button>
+    <span>or</span>
+    <span>scroll to explore the path</span>
+  </div>
 
   <div class="lightbox" id="lightbox" hidden>
     <div class="lightbox-inner">
@@ -381,7 +471,7 @@
   }
   </script>
   <script type="module">
-    import { initPath3D } from "./path3d.js?v=113";
+    import { initPath3D } from "./path3d.js?v=120";
 
     const data = window.TIMELINE_DATA;
     if (!data) {
@@ -395,8 +485,15 @@
     const currentCoords = document.getElementById("currentCoords");
     const nightToggle = document.getElementById("nightToggle");
     const exploreCta = document.getElementById("exploreCta");
+    const backToOverview = document.getElementById("backToOverview");
+    const exploreOutro = document.getElementById("exploreOutro");
     const explorePlay = document.getElementById("explorePlay");
     const checkpointList = document.getElementById("checkpointList");
+    const exploreMeta = document.getElementById("exploreMeta");
+    const metaTime = document.getElementById("metaTime");
+    const metaNumber = document.getElementById("metaNumber");
+    const metaName = document.getElementById("metaName");
+    const metaCoords = document.getElementById("metaCoords");
     const chromeEls = [
       document.querySelector(".site-title"),
       currentCoords,
@@ -404,11 +501,17 @@
       document.querySelector(".site-footer"),
     ].filter(Boolean);
 
-    const CHROME_FADE_MS = 3000;
-    const CTA_DELAY_MS = 2000;
-    const CTA_MORPH_MS = 1600;
+    const CHROME_FADE_MS = 2000;
+    const CTA_DELAY_MS = 1000;
+    const CTA_MORPH_MS = 1400; // appear-only morph (no hover morph)
     const CTA_TEXT = "explore the path to the peak";
-    const MORPH_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+    const MORPH_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz0123456789#%*+=";
+    const OUTRO_MORPH_MS = 3200; // longer than the CTA
+    const OUTRO_TEXT = "We all walk the same path, but for each of us it’s a different experience";
+    const HEADER_MORPH_MS = 1200;
+    const COORDS_TEXT = "*coordinates*";
+    const BACK_TEXT = "← GO BACK";
+    const EXPLORE_UI_LEAD_MS = 1000; // explore chrome shows up this long before the fly-in lands
     let introDurationMs = 5200;
     let ctaMorphStarted = false;
 
@@ -424,8 +527,10 @@
     function morphText(target, t, seed) {
       if (t <= 0.001) return "";
       if (t >= 0.999) return target;
-      const resolved = Math.floor(t * target.length);
-      const tick = (t * 28) | 0;
+      // Hold scramble longer, then decode L→R
+      const resolveU = t < 0.38 ? 0 : ((t - 0.38) / 0.62) * ((t - 0.38) / 0.62);
+      const resolved = Math.floor(Math.min(1, resolveU) * target.length);
+      const tick = (t * 56) | 0;
       let out = "";
       for (let i = 0; i < target.length; i++) {
         const ch = target[i];
@@ -442,6 +547,85 @@
       return out;
     }
 
+    // Scramble `from` away L→R, then resolve `to` L→R — the text never blanks out
+    function morphBetween(from, to, t, seed) {
+      if (t <= 0.001) return from;
+      if (t >= 0.999) return to;
+      const len = Math.round(from.length + (to.length - from.length) * Math.min(1, t / 0.5));
+      const scrambled = Math.floor(Math.min(1, t / 0.4) * len);
+      const resolveU = t < 0.45 ? 0 : (t - 0.45) / 0.55;
+      const resolved = Math.floor(resolveU * to.length);
+      const tick = (t * 56) | 0;
+      let out = "";
+      for (let i = 0; i < len; i++) {
+        if (i < resolved) out += to[i] ?? "";
+        else if (i >= scrambled && i < from.length) out += from[i];
+        else if ((to[i] ?? from[i]) === " ") out += " ";
+        else out += MORPH_CHARS[(hash01(`${seed}:${i}:${tick}`) * MORPH_CHARS.length) | 0];
+      }
+      return out;
+    }
+
+    // Header left slot: *coordinates* ⇄ ← GO BACK, morphed in place on mode change
+    let headerMode = "overview";
+    let headerMorphId = 0;
+    let headerMorphing = false;
+    function morphHeader(mode) {
+      if (mode === headerMode) return;
+      headerMode = mode;
+      const toExplore = mode === "explore";
+      const id = ++headerMorphId;
+      const from = backToOverview.hidden ? currentCoords.textContent : BACK_TEXT;
+      const to = toExplore ? BACK_TEXT : COORDS_TEXT;
+      backToOverview.hidden = true;
+      currentCoords.hidden = false;
+      headerMorphing = true;
+      const t0 = performance.now();
+      const ease = (x) => x * x * (3 - 2 * x);
+      function frame(now) {
+        if (id !== headerMorphId) return;
+        const u = Math.min(1, (now - t0) / HEADER_MORPH_MS);
+        currentCoords.textContent = morphBetween(from, to, ease(u), "header");
+        if (u < 1) {
+          requestAnimationFrame(frame);
+          return;
+        }
+        headerMorphing = false;
+        currentCoords.textContent = COORDS_TEXT;
+        // The real button takes over the exact same spot
+        if (toExplore) {
+          currentCoords.hidden = true;
+          backToOverview.hidden = false;
+        }
+      }
+      requestAnimationFrame(frame);
+    }
+
+    // End of the walk: closing line morphs + fades in, leaves when scrolling back
+    let outroShown = false;
+    let outroMorphId = 0;
+    function setOutro(show) {
+      if (show === outroShown) return;
+      outroShown = show;
+      const id = ++outroMorphId;
+      if (!show) {
+        exploreOutro.style.opacity = "0";
+        exploreOutro.textContent = "";
+        return;
+      }
+      const t0 = performance.now();
+      const ease = (x) => x * x * (3 - 2 * x);
+      function frame(now) {
+        if (id !== outroMorphId) return;
+        const u = Math.min(1, (now - t0) / OUTRO_MORPH_MS);
+        const e = ease(u);
+        exploreOutro.style.opacity = String(e);
+        exploreOutro.textContent = morphText(OUTRO_TEXT, e, "explore-outro");
+        if (u < 1) requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    }
+
     function setChromeOpacity(t) {
       const v = String(Math.min(1, Math.max(0, t)));
       for (const el of chromeEls) el.style.opacity = v;
@@ -451,26 +635,33 @@
       if (ctaMorphStarted) return;
       ctaMorphStarted = true;
       exploreCta.classList.add("is-ready");
+      exploreCta.style.opacity = "0";
+      exploreCta.style.pointerEvents = "none";
       const t0 = performance.now();
       const ease = (x) => x * x * (3 - 2 * x);
       function frame(now) {
         const u = Math.min(1, (now - t0) / CTA_MORPH_MS);
-        exploreCta.textContent = morphText(CTA_TEXT, ease(u), "explore-cta");
+        const e = ease(u);
+        // Light fade so the morph doesn't pop in at full strength
+        exploreCta.style.opacity = String(Math.min(1, e * 1.35));
+        exploreCta.textContent = morphText(CTA_TEXT, e, "explore-cta");
         if (u < 1) {
           requestAnimationFrame(frame);
           return;
         }
         exploreCta.textContent = CTA_TEXT;
+        exploreCta.style.opacity = "";
+        exploreCta.style.pointerEvents = "";
         exploreCta.removeAttribute("aria-hidden");
       }
       requestAnimationFrame(frame);
     }
 
+    // Speed label stays "x1" for now — the real multiplier is still 15× (keys 1–9 change it)
     function syncExplorePlayUi(playing) {
       const on = playing ?? explorePlay.getAttribute("aria-pressed") === "true";
-      const mul = app?.getExploreAutoplaySpeed?.() ?? 15;
       explorePlay.setAttribute("aria-pressed", on ? "true" : "false");
-      explorePlay.textContent = on ? `pause ${mul}×` : `play ${mul}×`;
+      explorePlay.textContent = on ? "PAUSE (x1)" : "AUTOPLAY (x1)";
     }
 
     // 46.519012 → 46°31'8.44"N (seconds to 2 decimals, trailing zeros dropped)
@@ -482,14 +673,47 @@
       return `${deg}°${min}'${sec}"${value < 0 ? neg : pos}`;
     }
 
+    function formatDms(item) {
+      if (item?.lat == null || item?.lon == null) return "";
+      return `${toDms(Number(item.lat), "N", "S")}, ${toDms(Number(item.lon), "E", "W")}`;
+    }
+
     function showCoords(item) {
-      if (item?.lat == null || item?.lon == null) {
-        currentCoords.textContent = "*current coordinates*";
-        return;
+      if (headerMorphing || headerMode !== "overview") return;
+      currentCoords.textContent = formatDms(item) || COORDS_TEXT;
+    }
+
+    // Explore: meta row shows the formed image (kept while it fades out),
+    // checkpoints unlock for good once the walk has reached them
+    let checkpoints = [];
+    let exploreUiTimer = 0;
+    let lastFormedId;
+    let lastUnlocked = -1;
+    let maxWalk = 0;
+    function syncExploreProgress({ walkDist, formedItem, formedIndex, total, atEnd }) {
+      setOutro(atEnd);
+      const formedId = formedItem?.id ?? null;
+      if (formedId !== lastFormedId) {
+        lastFormedId = formedId;
+        exploreMeta.classList.toggle("is-hidden", !formedItem);
+        if (formedItem) {
+          const pad = String(total).length;
+          metaTime.textContent = formedItem.timeLocal ?? "";
+          metaNumber.textContent = `${String(formedIndex + 1).padStart(pad, "0")}/${total}`;
+          metaName.textContent = formedItem.file ?? "";
+          metaCoords.textContent = formatDms(formedItem);
+        }
       }
-      const lat = toDms(Number(item.lat), "N", "S");
-      const lon = toDms(Number(item.lon), "E", "W");
-      currentCoords.textContent = `${lat}, ${lon}`;
+      maxWalk = Math.max(maxWalk, walkDist);
+      const unlocked = checkpoints.filter((cp) => maxWalk >= cp.arriveDist - 0.5).length;
+      if (unlocked !== lastUnlocked) {
+        lastUnlocked = unlocked;
+        app?.setUnlockedCheckpoints?.(unlocked);
+        checkpointList.querySelectorAll("button").forEach((btn, i) => {
+          btn.disabled = i >= unlocked;
+          btn.classList.toggle("is-unlocked", i < unlocked);
+        });
+      }
     }
 
     // Block browser page-zoom (ctrl/⌘+wheel, pinch, ⌘±). OrbitControls still zooms the 3D model.
@@ -555,10 +779,25 @@
       onExploreAutoplayChange: (playing) => syncExplorePlayUi(playing),
       onModeChange: (mode) => {
         document.documentElement.dataset.mode = mode;
-        showCoords(null);
-        if (mode !== "explore") syncExplorePlayUi(false);
+        morphHeader(mode);
+        if (mode !== "explore") {
+          syncExplorePlayUi(false);
+          setOutro(false);
+        }
       },
       onHoverItem: showCoords,
+      onExploreProgress: syncExploreProgress,
+      onTransitionChange: (active, { durationMs = 0 } = {}) => {
+        clearTimeout(exploreUiTimer);
+        if (!active) {
+          document.documentElement.setAttribute("data-explore-ready", "");
+          return;
+        }
+        document.documentElement.removeAttribute("data-explore-ready");
+        exploreUiTimer = setTimeout(() => {
+          document.documentElement.setAttribute("data-explore-ready", "");
+        }, Math.max(0, durationMs - EXPLORE_UI_LEAD_MS));
+      },
       onIntroProgress: (u, meta = {}) => {
         if (meta.durationMs) introDurationMs = meta.durationMs;
         // Last 3s of the 3D reveal → chrome fades 0→1, full when the model is full
@@ -581,14 +820,15 @@
     });
 
     function buildCheckpointList() {
-      const checkpoints = app?.getCheckpoints?.() ?? [];
+      checkpoints = app?.getCheckpoints?.() ?? [];
+      lastUnlocked = -1;
       checkpointList.replaceChildren();
       for (const cp of checkpoints) {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.dataset.id = cp.id;
-        const elev = cp.ele != null ? `${Math.round(cp.ele)} m` : "—";
-        btn.textContent = `checkpoint-${cp.index} · ${elev}`;
+        btn.textContent = `checkpoint-${cp.index}`;
+        btn.disabled = true;
         checkpointList.appendChild(btn);
       }
     }
