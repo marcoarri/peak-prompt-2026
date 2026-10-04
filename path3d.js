@@ -241,31 +241,106 @@ function quatFromAccel(accel, lookDir, out = new THREE.Quaternion()) {
   return out;
 }
 
-function loadTexture(url, loader, { forCloud = false } = {}) {
+function configureTexture(tex, forCloud) {
+  if (forCloud) {
+    // Display-referred for custom Points shader (avoid HW sRGB decode)
+    tex.colorSpace = THREE.NoColorSpace;
+    tex.generateMipmaps = false;
+    tex.minFilter = THREE.NearestFilter;
+    tex.magFilter = THREE.NearestFilter;
+  } else {
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    tex.generateMipmaps = true;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+  }
+  return tex;
+}
+
+// Images are decoded off the main thread (createImageBitmap), so a photo that
+// forms in explore never stalls a frame on a synchronous AVIF decode at upload.
+// Pixel-identical to TextureLoader: three r170 uploads 8-bit textures with no
+// colour conversion, so bitmaps are decoded with colorSpaceConversion "none",
+// and flipped at decode time (UNPACK_FLIP_Y is ignored for ImageBitmap).
+const BITMAP_OPTIONS = {
+  imageOrientation: "flipY",
+  premultiplyAlpha: "none",
+  colorSpaceConversion: "none",
+};
+// 1×2 PNG — red on top, blue below. Must come back flipped (blue on top).
+const FLIP_PROBE_PNG =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAACCAIAAAAW4yFwAAAAEElEQVR42mP4z8DAwMDwHwAIAAH/72AS3AAAAABJRU5ErkJggg==";
+let bitmapSupport = null;
+function canUseBitmaps() {
+  bitmapSupport ??= (async () => {
+    if (typeof createImageBitmap !== "function" || typeof fetch !== "function") return false;
+    const ua = navigator.userAgent;
+    // Same gate as three's GLTFLoader: older Safari / Firefox mishandle the options
+    if (/^((?!chrome|android).)*safari/i.test(ua)) {
+      const v = ua.match(/Version\/(\d+)/);
+      if (!v || Number(v[1]) < 17) return false;
+    }
+    const ff = ua.match(/Firefox\/(\d+)/);
+    if (ff && Number(ff[1]) < 98) return false;
+    try {
+      const blob = await (await fetch(FLIP_PROBE_PNG)).blob();
+      const bmp = await createImageBitmap(blob, BITMAP_OPTIONS);
+      const c = document.createElement("canvas");
+      c.width = 1;
+      c.height = 2;
+      const g = c.getContext("2d");
+      g.drawImage(bmp, 0, 0);
+      bmp.close?.();
+      const top = g.getImageData(0, 0, 1, 1).data;
+      return top[2] > 200 && top[0] < 60;
+    } catch {
+      return false;
+    }
+  })();
+  return bitmapSupport;
+}
+
+function loadTextureClassic(url, loader, forCloud) {
   return new Promise((resolve) => {
     loader.load(
       url,
       (tex) => {
-        if (forCloud) {
-          // Display-referred for custom Points shader (avoid HW sRGB decode)
-          tex.colorSpace = THREE.NoColorSpace;
-          tex.generateMipmaps = false;
-          tex.minFilter = THREE.NearestFilter;
-          tex.magFilter = THREE.NearestFilter;
-          tex.flipY = true; // same as MeshBasic plane
-        } else {
-          tex.colorSpace = THREE.SRGBColorSpace;
-          tex.anisotropy = 4;
-          tex.generateMipmaps = true;
-          tex.minFilter = THREE.LinearMipmapLinearFilter;
-          tex.magFilter = THREE.LinearFilter;
-        }
+        configureTexture(tex, forCloud);
+        tex.flipY = true; // same as MeshBasic plane
         resolve(tex);
       },
       undefined,
       () => resolve(null)
     );
   });
+}
+
+async function loadTexture(url, loader, { forCloud = false } = {}) {
+  if (!url) return null;
+  if (await canUseBitmaps()) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const bmp = await createImageBitmap(await res.blob(), BITMAP_OPTIONS);
+      const tex = new THREE.Texture(bmp);
+      tex.flipY = false; // already flipped by createImageBitmap
+      configureTexture(tex, forCloud);
+      tex.needsUpdate = true;
+      return tex;
+    } catch {
+      // Format this browser can't bitmap-decode — fall back to <img>
+    }
+  }
+  return loadTextureClassic(url, loader, forCloud);
+}
+
+function disposeTexture(tex, { closeImage = true } = {}) {
+  if (!tex) return;
+  tex.dispose();
+  if (closeImage && typeof ImageBitmap !== "undefined" && tex.image instanceof ImageBitmap) {
+    tex.image.close();
+  }
 }
 
 function makeCloudGeometry(cols, rows) {
@@ -574,6 +649,7 @@ export function initPath3D({
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
     alpha: true,
+    powerPreference: "high-performance",
     // logarithmicDepthBuffer breaks Points / gl_PointSize — keep off for the cloud
   });
   let nightMode = false;
@@ -636,6 +712,16 @@ export function initPath3D({
     THREE.RGBAFormat
   );
   placeholderTex.needsUpdate = true;
+  // Explore planes always carry a map, so swapping photo ↔ fallback never
+  // changes the shader program. Never shown: a fallback is set before display.
+  const placeholderHiTex = new THREE.DataTexture(
+    new Uint8Array([255, 255, 255, 255]),
+    1,
+    1,
+    THREE.RGBAFormat
+  );
+  placeholderHiTex.colorSpace = THREE.SRGBColorSpace;
+  placeholderHiTex.needsUpdate = true;
   // Pool of clouds — several photos can dissolve together
   const EXPLORE_WIGGLE_M = 0.055; // subtle point drift while mist is alive
   const cloudPool = Array.from({ length: MAX_ACTIVE_CLOUDS }, (_, i) => {
@@ -689,12 +775,12 @@ export function initPath3D({
   const overviewNodes = []; // { group, pick }
   const overviewCloudMats = []; // for live wiggle time updates
   const exploreNodes = [];
+  const videoNodes = []; // explore nodes that carry a video
   const planeGeoCache = new Map(); // aspect key → geometry
   const _ovLook = new THREE.Vector3();
   const _ovQuat = new THREE.Quaternion();
 
   let walkDist = 0;
-  let layoutRaf = 0;
   let camTransition = null; // overview → explore fly-in state
   let landingIntro = null; // base→peak reveal on first load
   // Keep white veil + hide overview until the landing intro actually starts
@@ -776,69 +862,274 @@ export function initPath3D({
   function playNodeVideo(node) {
     const v = node.video;
     if (!v || node.videoPlaying) return;
+    // Flag first so play() isn't re-issued every frame while it is pending
+    node.videoPlaying = true;
     const p = v.play();
-    if (p && typeof p.then === "function") {
-      p.then(() => {
-        node.videoPlaying = true;
-      }).catch(() => {
-        node.videoPlaying = false;
+    if (p && typeof p.catch === "function") {
+      p.catch(() => {
+        if (node.video === v && v.paused) node.videoPlaying = false;
       });
-    } else {
-      node.videoPlaying = true;
     }
   }
 
+  // —— Full-size map streaming (explore) ——
+  // Photos (md) and video posters are decoded only near the walker and freed
+  // again behind/far ahead of it: GPU memory stays bounded (~30 photos) instead
+  // of growing to every photo of the trail (~1.7 GB) on a full walk.
+  const HI_IDLE = 0;
+  const HI_LOADING = 1;
+  const HI_READY = 2;
+  const HI_FAILED = 3;
+  const HI_LOAD_AHEAD_M = SHOW_AHEAD_M + 40; // decoded well before it leaves the mist
+  const HI_LOAD_BEHIND_M = 40; // scroll-back finds the last photos sharp
+  const HI_KEEP_AHEAD_M = HI_LOAD_AHEAD_M + 60; // hysteresis before freeing
+  const HI_KEEP_BEHIND_M = 70;
+  const HI_MAX_INFLIGHT = 4;
+  const HI_PREFETCH_PARALLEL = 2;
+  // Checkpoint jump waits for every photo the layout may show at arrival…
+  const JUMP_READY_AHEAD_M = SHOW_AHEAD_M;
+  const JUMP_WAIT_MAX_MS = 450; // …but never longer than this
+  let hiInflight = 0;
+  const hiUploadQueue = [];
+  const hiCandidates = [];
+  let jumpProtect = null; // nodes a pending checkpoint jump needs (never evicted)
+  let currentVeil = 1;
+  let streamCenter = null; // walk position the streaming window follows
+  let streamDirty = false; // a decode finished — top the window up next frame
+
+  function hiUrlFor(node) {
+    const it = node.placement.item;
+    return node.isVideo ? it.poster || it.thumb : it.md || it.thumb || it.src;
+  }
+
+  function videoHasFrame(node) {
+    const v = node.video;
+    if (!v || !node.videoTex) return false;
+    // rVFC marks the texture once a frame exists (also while paused at 0)
+    return "requestVideoFrameCallback" in v ? node.videoTex.version > 0 : v.readyState >= 2;
+  }
+
+  /** Low-res stand-in (point-cloud map, linear) if a card shows before its photo */
+  function fallbackFor(node) {
+    if (!node.fallbackTex) {
+      const src = node.dissolveTex;
+      if (!src?.image) return placeholderHiTex;
+      const tex = new THREE.Texture(src.image);
+      tex.flipY = src.flipY;
+      configureTexture(tex, false);
+      tex.needsUpdate = true;
+      node.fallbackTex = tex;
+    }
+    return node.fallbackTex;
+  }
+
+  function syncNodeMap(node) {
+    const mat = node.hiPlane.material;
+    const next = videoHasFrame(node) ? node.videoTex : node.hiTex || fallbackFor(node);
+    if (mat.map === next) return;
+    // Video maps use another shader variant (sRGB decoded in the shader)
+    const variantChange = !!mat.map?.isVideoTexture !== !!next.isVideoTexture;
+    mat.map = next;
+    if (variantChange) mat.needsUpdate = true;
+  }
+
+  function requestHi(node) {
+    if (node.hiState !== HI_IDLE) return;
+    const url = hiUrlFor(node);
+    if (!url) {
+      node.hiState = HI_FAILED;
+      return;
+    }
+    node.hiState = HI_LOADING;
+    const gen = node.hiGen;
+    hiInflight++;
+    const done = (tex) => {
+      hiInflight--;
+      streamDirty = true;
+      if (gen !== node.hiGen) {
+        disposeTexture(tex); // released while decoding
+        return;
+      }
+      if (!tex) {
+        node.hiState = HI_FAILED;
+        return;
+      }
+      node.hiTex = tex;
+      node.hiState = HI_READY;
+      hiUploadQueue.push(node);
+      if (node.fallbackTex) {
+        const mat = node.hiPlane.material;
+        if (mat.map === node.fallbackTex) mat.map = tex;
+        disposeTexture(node.fallbackTex, { closeImage: false }); // image = cloud map
+        node.fallbackTex = null;
+      }
+    };
+    loadTexture(url, loader).then(done, () => done(null));
+  }
+
+  function ensureVideo(node) {
+    const src = node.placement.item.src;
+    if (!node.isVideo || node.video || !src) return;
+    const video = makeVideoElement(src);
+    const tex = new THREE.VideoTexture(video);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.generateMipmaps = false;
+    node.video = video;
+    node.videoTex = tex;
+    node.videoPlaying = false;
+    try {
+      video.load();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function releaseVideo(node) {
+    const v = node.video;
+    if (!v) return;
+    stopNodeVideo(node);
+    const mat = node.hiPlane.material;
+    if (mat.map === node.videoTex) {
+      mat.map = node.hiTex || placeholderHiTex;
+      mat.needsUpdate = true;
+    }
+    node.videoTex?.dispose();
+    v.removeAttribute("src");
+    try {
+      v.load(); // drop the buffered media
+    } catch {
+      /* ignore */
+    }
+    node.video = null;
+    node.videoTex = null;
+    node.videoPlaying = false;
+  }
+
+  function releaseHi(node) {
+    node.hiGen++; // cancels an in-flight decode
+    releaseVideo(node);
+    const mat = node.hiPlane.material;
+    if (node.hiTex) {
+      if (mat.map === node.hiTex) mat.map = placeholderHiTex;
+      disposeTexture(node.hiTex);
+      node.hiTex = null;
+    }
+    if (node.fallbackTex) {
+      if (mat.map === node.fallbackTex) mat.map = placeholderHiTex;
+      disposeTexture(node.fallbackTex, { closeImage: false });
+      node.fallbackTex = null;
+    }
+    node.hiState = HI_IDLE;
+  }
+
+  /** Decode what's near `center` (nearest first), free what's far from it */
+  function updateHiStreaming(center) {
+    streamCenter = center;
+    streamDirty = false;
+    hiCandidates.length = 0;
+    for (const node of exploreNodes) {
+      const ahead = node.placement.dist - center;
+      const keep = ahead > -HI_KEEP_BEHIND_M && ahead < HI_KEEP_AHEAD_M;
+      if (!keep) {
+        if (jumpProtect?.has(node)) continue;
+        if (node.hiState !== HI_IDLE || node.video || node.fallbackTex) releaseHi(node);
+        continue;
+      }
+      const want = ahead > -HI_LOAD_BEHIND_M && ahead < HI_LOAD_AHEAD_M;
+      if (!want) continue;
+      ensureVideo(node);
+      if (node.hiState === HI_IDLE) hiCandidates.push(node);
+    }
+    if (!hiCandidates.length || hiInflight >= HI_MAX_INFLIGHT) return;
+    // Forward-biased nearest-first
+    const key = (n) => {
+      const a = n.placement.dist - center;
+      return a >= 0 ? a : -a * 2;
+    };
+    hiCandidates.sort((a, b) => key(a) - key(b));
+    for (const node of hiCandidates) {
+      if (hiInflight >= HI_MAX_INFLIGHT) break;
+      requestHi(node);
+    }
+  }
+
+  /**
+   * Per frame, independent of scrolling: refill the decode window as slots
+   * free up, and swap a formed video card from poster to live video as soon
+   * as it has a frame (the layout itself only runs on scroll / autoplay).
+   */
+  function tickHiStreaming() {
+    if (streamDirty && streamCenter != null && !pendingJump) updateHiStreaming(streamCenter);
+    if (mode !== "explore") return;
+    for (const node of videoNodes) {
+      if (node.video && node.hiPlane.visible && node.group.visible) syncNodeMap(node);
+    }
+  }
+
+  /**
+   * GPU upload of decoded photos, paced outside the visible card fade-in:
+   * one per frame while exploring, a batch while the level veil is opaque.
+   */
+  function pumpHiUploads() {
+    if (!hiUploadQueue.length) return;
+    // Small batches even under the veil: a slow GPU must not stretch one frame
+    // past the black hold into the visible fade-in.
+    let budget = currentVeil >= 0.999 ? 3 : mode === "explore" && !camTransition ? 1 : 0;
+    while (budget > 0 && hiUploadQueue.length) {
+      const node = hiUploadQueue.shift();
+      if (node.hiState !== HI_READY || !node.hiTex) continue;
+      renderer.initTexture(node.hiTex);
+      budget--;
+    }
+  }
+
+  // Warm the HTTP cache with the remaining photos/posters in path order once
+  // the visitor starts exploring, so later decodes never wait on the network.
+  let prefetchStarted = false;
+  function startHiPrefetch() {
+    if (prefetchStarted || typeof fetch !== "function") return;
+    prefetchStarted = true;
+    let i = 0;
+    const next = () => {
+      while (i < exploreNodes.length) {
+        const node = exploreNodes[i++];
+        if (node.hiState !== HI_IDLE) continue; // already streamed
+        const url = hiUrlFor(node);
+        if (!url) continue;
+        return fetch(url, { priority: "low" })
+          .then((r) => r.blob())
+          .catch(() => {})
+          .then(next);
+      }
+      return undefined;
+    };
+    for (let k = 0; k < HI_PREFETCH_PARALLEL; k++) next();
+  }
+
   async function buildMediaVisuals() {
-    // pc = aspect-correct × CLOUD_LONG_SIDE; photos fade md, videos play after reform
+    // Only the point-cloud maps (pc, ~4 MB in all) gate the landing. Full-size
+    // photos, posters and videos stream in later around the explore walker
+    // (see updateHiStreaming), so the reveal starts after seconds, not minutes.
     const jobs = placements.map(async (placement) => {
       const { item } = placement;
       const isVideo = item.kind === "video";
-      const cardUrl = item.thumb || item.poster || item.md || item.src;
       const cloudUrl = item.pc || item.poster || item.md || item.thumb || item.src;
-      const hiUrl = isVideo ? null : item.md || item.thumb || item.src;
 
-      const texP = loadTexture(cardUrl, loader);
-      const cloudP = loadTexture(cloudUrl, loader, { forCloud: true });
-      const hiP = hiUrl ? loadTexture(hiUrl, loader) : Promise.resolve(null);
-      const [tex, cloudTex, hiTex] = await Promise.all([texP, cloudP, hiP]);
-
-      let video = null;
-      let videoTex = null;
-      if (isVideo && item.src) {
-        video = makeVideoElement(item.src);
-        await new Promise((resolve) => {
-          if (video.readyState >= 2) {
-            resolve();
-            return;
-          }
-          video.addEventListener("loadeddata", resolve, { once: true });
-          video.addEventListener("error", resolve, { once: true });
-          try {
-            video.load();
-          } catch {
-            resolve();
-          }
-        });
-        try {
-          video.pause();
-          video.currentTime = 0;
-        } catch {
-          /* ignore */
-        }
-        videoTex = new THREE.VideoTexture(video);
-        videoTex.colorSpace = THREE.SRGBColorSpace;
-        videoTex.minFilter = THREE.LinearFilter;
-        videoTex.magFilter = THREE.LinearFilter;
-        videoTex.generateMipmaps = false;
+      let cloudTex = await loadTexture(cloudUrl, loader, { forCloud: true });
+      if (!cloudTex && item.thumb && item.thumb !== cloudUrl) {
+        cloudTex = await loadTexture(item.thumb, loader, { forCloud: true });
       }
 
-      const dissolveTex = cloudTex || tex;
-      const hiMap = videoTex || hiTex || tex;
-      const aspect = tex?.image
-        ? (tex.image.width || 4) / (tex.image.height || 3)
-        : item.width && item.height
+      const dissolveTex = cloudTex;
+      // Source dimensions (identical ratio to the web renditions for all media)
+      const aspect =
+        item.width && item.height
           ? item.width / item.height
-          : 4 / 3;
+          : dissolveTex?.image
+            ? (dissolveTex.image.width || 4) / (dissolveTex.image.height || 3)
+            : 4 / 3;
       const clamped = Math.min(Math.max(aspect, 0.7), 1.7);
       const cloudW =
         item.pcW ||
@@ -881,8 +1172,10 @@ export function initPath3D({
         overviewCloudMats.push(cloudMat);
       }
 
-      // Invisible pick plane (same footprint as the cloud core)
+      // Invisible pick plane (same footprint as the cloud core). Material
+      // visible:false keeps it out of the draw list; raycasts still hit it.
       const pickMat = new THREE.MeshBasicMaterial({
+        visible: false,
         transparent: true,
         opacity: 0,
         depthWrite: false,
@@ -917,9 +1210,10 @@ export function initPath3D({
       });
 
       const group = new THREE.Group();
+      // Map is swapped to the streamed photo / video when they are ready
       const hiMat = new THREE.MeshBasicMaterial({
-        map: hiMap,
-        color: hiMap ? 0xffffff : 0x888888,
+        map: placeholderHiTex,
+        color: 0xffffff,
         side: THREE.DoubleSide,
         transparent: true,
         opacity: 0,
@@ -937,17 +1231,25 @@ export function initPath3D({
         hiPlane,
         group,
         dissolveTex,
-        video,
-        videoPlaying: false,
         isVideo,
         cloudW,
         cloudH,
         aspect: clamped,
+        // Streamed full-size map (photo md / video poster) + lazy video
+        hiState: HI_IDLE,
+        hiTex: null,
+        hiGen: 0,
+        fallbackTex: null,
+        video: null,
+        videoTex: null,
+        videoPlaying: false,
+        visStamp: -1,
       });
     });
     await Promise.all(jobs);
     // Texture loads finish out of order — restore path order for O(n) visible scans
     exploreNodes.sort((a, b) => a.placement.dist - b.placement.dist);
+    for (const n of exploreNodes) if (n.isVideo) videoNodes.push(n);
   }
 
   // Inflate path spacing for the volumetric mass, then frame the camera on it
@@ -1121,12 +1423,14 @@ export function initPath3D({
           ? 1
           : 0;
       const show = reveal > 0.04 && inFront && fade > 0.03;
-      pin.hidden = !show;
+      // DOM writes only on change — unchanged writes still dirty style/layout
+      if (pin.hidden !== !show) pin.hidden = !show;
       if (!show) continue;
       const x = (_pinNdc.x * 0.5 + 0.5) * w;
       const y = (-_pinNdc.y * 0.5 + 0.5) * h;
       pin.style.transform = `translate(${x}px, ${y}px) translate(-5.8px, -50%)`;
-      pin.style.opacity = String(reveal * fade);
+      const opacity = String(reveal * fade);
+      if (pin.style.opacity !== opacity) pin.style.opacity = opacity;
 
       let morphT = 1;
       if (landingIntro) {
@@ -1136,7 +1440,8 @@ export function initPath3D({
             ? THREE.MathUtils.clamp((now - cp.morphStart) / CP_MORPH_MS, 0, 1)
             : 0;
       }
-      label.textContent = morphLabel(targetText, morphT, targetText);
+      const text = morphLabel(targetText, morphT, targetText);
+      if (label.textContent !== text) label.textContent = text;
     }
   }
 
@@ -1167,14 +1472,47 @@ export function initPath3D({
     return THREE.MathUtils.clamp(p.dist - lead, 0, exploreTotal);
   }
 
+  // The jump waits (briefly) for the photos around the destination to be
+  // decoded, so it lands on sharp images instead of low-res stand-ins.
+  let pendingJump = null;
   function goToCheckpoint(id) {
     const p = placements.find((x) => x.item.id === id);
     if (!p) return false;
+    if (mode === "explore" && !camTransition) setExploreAutoplay(false);
+    const target = checkpointArriveDist(p);
+    const needed = exploreNodes.filter((n) => {
+      const a = n.placement.dist - target;
+      return a > -HI_LOAD_BEHIND_M && a < JUMP_READY_AHEAD_M;
+    });
+    // Nearest first: if the wait times out, only faint far cards fall back
+    const near = (n) => Math.abs(n.placement.dist - target);
+    for (const n of needed.slice().sort((a, b) => near(a) - near(b))) requestHi(n);
+    jumpProtect = new Set(needed);
+    pendingJump = { target, needed, deadline: performance.now() + JUMP_WAIT_MAX_MS };
+    startHiPrefetch();
+    if (pendingJumpReady()) applyPendingJump();
+    return true;
+  }
+
+  function pendingJumpReady() {
+    return pendingJump.needed.every((n) => n.hiState === HI_READY || n.hiState === HI_FAILED);
+  }
+
+  function applyPendingJump() {
+    const jump = pendingJump;
+    pendingJump = null;
+    if (!jump) return;
     if (mode !== "explore" || camTransition) setMode("explore", { animate: false });
     else setExploreAutoplay(false);
-    walkDist = checkpointArriveDist(p);
+    walkDist = jump.target;
     updateExploreLayout();
-    return true;
+    jumpProtect = null;
+  }
+
+  function cancelPendingJump() {
+    if (!pendingJump) return;
+    pendingJump = null;
+    jumpProtect = null;
   }
 
   // Overview → explore: pan + level-change fade (out before pan settles, then in)
@@ -1182,7 +1520,6 @@ export function initPath3D({
   const _trPos = new THREE.Vector3();
   const _trMid = new THREE.Vector3();
   const _trQuat = new THREE.Quaternion();
-  const _camPos = new THREE.Vector3();
 
   function easeInOutQuint(u) {
     const t = THREE.MathUtils.clamp(u, 0, 1);
@@ -1214,7 +1551,8 @@ export function initPath3D({
   }
 
   function setViewFade(opacity) {
-    fadeEl.style.opacity = String(THREE.MathUtils.clamp(opacity, 0, 1));
+    currentVeil = THREE.MathUtils.clamp(opacity, 0, 1);
+    fadeEl.style.opacity = String(currentVeil);
   }
 
   function resetOverviewMistWash() {
@@ -1376,11 +1714,6 @@ export function initPath3D({
     controls.update();
     const t = now * 0.001;
     for (const mat of overviewCloudMats) mat.uniforms.uTime.value = t;
-    camera.getWorldPosition(_camPos);
-    for (const n of overviewNodes) {
-      if (!n.group.visible) continue;
-      n.pick.renderOrder = 20 - n.group.position.distanceToSquared(_camPos) * 1e-6;
-    }
 
     onIntroProgress?.(u, { durationMs: dur, ms });
     if (u >= 1) {
@@ -1502,6 +1835,9 @@ export function initPath3D({
     resetOverviewMistWash();
 
     const clampedEnd = THREE.MathUtils.clamp(endWalk, 0, exploreTotal);
+    // Decode the opening photos during the pan; they upload under the black veil
+    updateHiStreaming(clampedEnd);
+    startHiPrefetch();
     // Live orbit pose → trailhead (path perpendicular into the screen)
     const fromPos = camera.position.clone();
     const fromQuat = camera.quaternion.clone();
@@ -1633,11 +1969,6 @@ export function initPath3D({
 
       const tOv = now * 0.001;
       for (const mat of overviewCloudMats) mat.uniforms.uTime.value = tOv;
-      camera.getWorldPosition(_camPos);
-      for (const n of overviewNodes) {
-        if (!n.group.visible) continue;
-        n.pick.renderOrder = 20 - n.group.position.distanceToSquared(_camPos) * 1e-6;
-      }
     } else {
       updateExploreLayout();
       const t = now * 0.001;
@@ -1813,9 +2144,12 @@ export function initPath3D({
     return t * t * (3 - 2 * t);
   }
 
+  let layoutStamp = 0;
+  let layoutDirty = false;
   function updateExploreLayout() {
+    layoutDirty = false;
     // exploreNodes follow padded dist order — scan forward, no full sort
-    const visibleSet = new Set();
+    const stamp = ++layoutStamp;
     let aheadCount = 0;
     for (const node of exploreNodes) {
       const ahead = node.placement.dist - walkDist;
@@ -1823,7 +2157,7 @@ export function initPath3D({
       if (ahead >= SHOW_AHEAD_M) break;
       if (aheadCount >= MAX_VISIBLE_CARDS) break;
       aheadCount++;
-      visibleSet.add(node);
+      node.visStamp = stamp;
     }
 
     // Camera: autoplay uses LUT on the ultra-smooth ribbon; scroll uses explore curve
@@ -1848,7 +2182,7 @@ export function initPath3D({
 
     for (const node of exploreNodes) {
       const ahead = node.placement.dist - walkDist;
-      const show = mode === "explore" && visibleSet.has(node);
+      const show = mode === "explore" && node.visStamp === stamp;
 
       if (!show || ahead <= 0 || ahead >= SHOW_AHEAD_M) {
         node.group.visible = false;
@@ -1975,6 +2309,7 @@ export function initPath3D({
       const order = Math.round(8 + Math.max(0, 180 - ahead));
       if (showPlane) {
         node.hiPlane.visible = true;
+        syncNodeMap(node);
         node.hiPlane.scale.set(baseScaleX * grow, baseScaleY * grow, 1);
         node.hiPlane.material.opacity = planeOpacity;
         node.hiPlane.material.transparent = planeOpacity < 0.99;
@@ -2024,10 +2359,13 @@ export function initPath3D({
         cloudPool[i].pts.visible = false;
       }
     }
+
+    updateHiStreaming(walkDist);
   }
 
   function setMode(next, { animate = true } = {}) {
     const target = next === "explore" ? "explore" : "overview";
+    cancelPendingJump();
     setHover(null);
     // Only abort the landing reveal when leaving overview (e.g. Explore CTA)
     if (landingIntro && target !== "overview") finishLandingIntro();
@@ -2052,6 +2390,7 @@ export function initPath3D({
       // Farthest POV — start of lead-in, everything ahead
       walkDist = 0;
       for (const slot of cloudPool) slot.pts.visible = false;
+      startHiPrefetch();
       applyExploreCamera();
     } else {
       applyOverviewCamera();
@@ -2060,14 +2399,15 @@ export function initPath3D({
     return mode;
   }
 
-  // Scroll moves images — layout sync this frame (avoids a one-frame empty hitch)
+  // Scroll moves images. Trackpads fire several wheel events per frame: the
+  // steps accumulate here and the layout runs once, in this frame's tick.
   function onWheel(e) {
     if (mode !== "explore" || camTransition) return;
     e.preventDefault();
     if (exploreAutoplay) setExploreAutoplay(false);
     const step = Math.sign(e.deltaY) * Math.min(4.5, Math.abs(e.deltaY) * 0.02);
     walkDist = THREE.MathUtils.clamp(walkDist + step, 0, exploreTotal);
-    updateExploreLayout();
+    layoutDirty = true;
   }
   renderer.domElement.addEventListener("wheel", onWheel, { passive: false });
 
@@ -2097,24 +2437,38 @@ export function initPath3D({
     onHoverItem?.(hover?.userData?.item ?? null);
   }
 
+  // Pointer moves are coalesced: the hover raycast runs once per frame
+  let pendingPointer = null;
+  const pickables = [];
   function onPointerMove(e) {
     if (mode === "explore" || camTransition || landingIntro) {
+      pendingPointer = null;
       setHover(null);
       return;
     }
+    pendingPointer ??= { x: 0, y: 0 };
+    pendingPointer.x = e.clientX;
+    pendingPointer.y = e.clientY;
+  }
+
+  function processPendingPointer() {
+    if (!pendingPointer) return;
+    const { x, y } = pendingPointer;
+    pendingPointer = null;
+    if (mode === "explore" || camTransition || landingIntro) return;
     const rect = renderer.domElement.getBoundingClientRect();
-    pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    pointer.x = ((x - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((y - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(pointer, camera);
-    const pickables = [
-      ...checkpointMarkers.filter((b) => b.visible),
-      ...overviewBillboards.filter((b) => b.visible),
-    ];
+    pickables.length = 0;
+    for (const b of checkpointMarkers) if (b.visible) pickables.push(b);
+    for (const b of overviewBillboards) if (b.visible) pickables.push(b);
     const hits = raycaster.intersectObjects(pickables, false);
     setHover(hits[0]?.object || null);
   }
 
   function onPointerLeave() {
+    pendingPointer = null;
     setHover(null);
   }
 
@@ -2126,6 +2480,7 @@ export function initPath3D({
   function onClick(e) {
     if (Math.hypot(e.clientX - downX, e.clientY - downY) > 5) return;
     if (camTransition || landingIntro) return;
+    processPendingPointer(); // hover must reflect the latest move
     if (mode === "explore") {
       // pick nearest visible explore plane
       const rect = renderer.domElement.getBoundingClientRect();
@@ -2178,6 +2533,10 @@ export function initPath3D({
   let raf = 0;
   function tick() {
     raf = requestAnimationFrame(tick);
+    processPendingPointer();
+    if (pendingJump && (pendingJumpReady() || performance.now() >= pendingJump.deadline)) {
+      applyPendingJump();
+    }
     if (landingIntro) {
       tickLandingIntro(performance.now());
     } else if (camTransition) {
@@ -2186,10 +2545,6 @@ export function initPath3D({
       controls.update();
       const t = cloudClock.getElapsedTime();
       for (const mat of overviewCloudMats) mat.uniforms.uTime.value = t;
-      camera.getWorldPosition(_camPos);
-      for (const n of overviewNodes) {
-        n.pick.renderOrder = 20 - n.group.position.distanceToSquared(_camPos) * 1e-6;
-      }
       for (const m of checkpointMarkers) {
         m.quaternion.copy(camera.quaternion);
       }
@@ -2221,8 +2576,12 @@ export function initPath3D({
         }
         updateExploreLayout();
         if (walkDist >= exploreTotal - 1e-3) setExploreAutoplay(false);
+      } else if (layoutDirty) {
+        updateExploreLayout();
       }
     }
+    tickHiStreaming();
+    pumpHiUploads();
     // During level-change, tickCamTransition owns pin visibility
     if (!camTransition) updateCheckpointPins();
     renderer.render(scene, camera);
@@ -2233,7 +2592,33 @@ export function initPath3D({
   applyOverviewCamera();
   controls.enabled = false;
   tick();
-  buildMediaVisuals().then(() => {
+  // Upload every cloud map and compile the shaders behind the opaque white
+  // veil, so neither the base→peak reveal nor the first explore frame stalls
+  // on first use. Nothing is drawn here.
+  async function prewarmOverview() {
+    for (const n of overviewNodes) {
+      const map = n.cloudMat?.uniforms.uColor.value;
+      if (map) renderer.initTexture(map);
+    }
+    // compile() walks the whole scene, visible or not. A temporary fog makes
+    // the explore photo planes compile in their final (fogged) variant.
+    const fog = scene.fog;
+    let compiled = null;
+    try {
+      scene.fog = new THREE.Fog(0xffffff, FOG_NEAR_M, FOG_FAR_M);
+      compiled = renderer.compileAsync(scene, camera);
+    } catch {
+      /* compile on first use instead */
+    } finally {
+      scene.fog = fog;
+    }
+    if (compiled) {
+      await Promise.race([compiled.catch(() => {}), new Promise((r) => setTimeout(r, 1500))]);
+    }
+  }
+
+  buildMediaVisuals().then(async () => {
+    await prewarmOverview();
     container.dataset.ready = "true";
     if (mode === "explore") {
       pendingLandingIntro = false;
@@ -2308,10 +2693,9 @@ export function initPath3D({
     getNightMode: () => nightMode,
     dispose() {
       cancelAnimationFrame(raf);
-      if (layoutRaf) cancelAnimationFrame(layoutRaf);
       landingIntro = null;
       cancelCamTransition();
-      hideHoverTip();
+      cancelPendingJump();
       ro.disconnect();
       const el = renderer.domElement;
       el.removeEventListener("wheel", onWheel);
@@ -2319,13 +2703,7 @@ export function initPath3D({
       el.removeEventListener("pointerdown", onPointerDown);
       el.removeEventListener("pointerleave", onPointerLeave);
       el.removeEventListener("click", onClick);
-      for (const n of exploreNodes) {
-        stopNodeVideo(n);
-        if (n.video) {
-          n.video.removeAttribute("src");
-          n.video.load();
-        }
-      }
+      for (const n of exploreNodes) releaseHi(n);
       controls.dispose();
       renderer.dispose();
       el.remove();

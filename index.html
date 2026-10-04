@@ -4,6 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <title>Peak Prompt — 3D</title>
+  <link rel="icon" href="data:," />
+  <!-- Import map first: it must be known before any module (or modulepreload) loads -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+  <!-- Fetch the 3D modules in parallel with the page instead of one after another -->
+  <link rel="modulepreload" href="./path3d.js?v=146" />
+  <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js" />
+  <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/controls/OrbitControls.js" />
   <style>
     @font-face {
       font-family: "ABC Gaisyr Mono";
@@ -468,16 +482,8 @@
   </div>
 
   <script src="timeline-data.js"></script>
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
-    }
-  }
-  </script>
   <script type="module">
-    import { initPath3D } from "./path3d.js?v=145";
+    import { initPath3D } from "./path3d.js?v=146";
 
     const data = window.TIMELINE_DATA;
     if (!data) {
@@ -755,7 +761,8 @@
         }
       }
       maxWalk = Math.max(maxWalk, walkDist);
-      const unlocked = checkpoints.filter((cp) => maxWalk >= cp.arriveDist - 0.5).length;
+      let unlocked = 0;
+      for (const cp of checkpoints) if (maxWalk >= cp.arriveDist - 0.5) unlocked++;
       if (unlocked !== lastUnlocked) {
         lastUnlocked = unlocked;
         app?.setUnlockedCheckpoints?.(unlocked);
@@ -788,7 +795,9 @@
       document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
     }
 
+    let lightboxCloseTimer = 0;
     function openLightbox(item) {
+      clearTimeout(lightboxCloseTimer);
       stage.replaceChildren();
       let el;
       if (item.kind === "video") {
@@ -809,10 +818,12 @@
     }
 
     function closeLightbox() {
+      if (lightbox.hidden) return;
       lightbox.classList.remove("open");
       const media = stage.querySelector("video");
       if (media) media.pause();
-      setTimeout(() => {
+      clearTimeout(lightboxCloseTimer);
+      lightboxCloseTimer = setTimeout(() => {
         lightbox.hidden = true;
         stage.replaceChildren();
       }, 250);
