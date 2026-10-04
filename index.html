@@ -109,7 +109,7 @@
     .checkpoint-pin img { display: block; }
     html.night .checkpoint-pin img { filter: invert(1); }
     .checkpoint-pin span {
-      margin-bottom: 4.4px;
+      margin-bottom: 2px; /* was 4.4 — sit ~2px lower vs the icon */
       font-variant-numeric: tabular-nums;
       min-width: 11ch;
     }
@@ -175,7 +175,7 @@
     .explore-cta,
     .explore-outro {
       position: fixed;
-      top: calc(50% - 40px);
+      top: calc(50% - 50px);
       left: 50%;
       transform: translateX(-50%);
       z-index: 3;
@@ -188,7 +188,7 @@
       text-decoration: underline;
       text-decoration-thickness: 4px;
       text-underline-position: auto;        /* la linea torna a passare attraverso le discendenti */
-      text-underline-offset: 11px;           /* distanza dalla linea di base: regola a piacere */
+      text-underline-offset: 10px;           /* distanza dalla linea di base: regola a piacere */
       text-decoration-skip-ink: auto;       /* il browser interrompe la linea attorno alle discendenti */
       text-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
       opacity: 0;
@@ -258,16 +258,15 @@
     /* Explore mode */
     html[data-mode="explore"] .site-title { font-weight: 400; }
 
-    /* Explore chrome waits for the fly-in to land */
+    /* Checkpoints/footer opacity driven by level veil (JS). Meta uses is-hidden. */
     .explore-checkpoints,
     .explore-footer {
-      transition: opacity 0.4s ease;
+      opacity: 0;
     }
 
     html:not([data-explore-ready]) .explore-checkpoints,
     html:not([data-explore-ready]) .explore-meta,
     html:not([data-explore-ready]) .explore-footer {
-      opacity: 0;
       pointer-events: none;
     }
 
@@ -290,15 +289,17 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      mix-blend-mode: normal;
     }
 
     .explore-checkpoints button {
-      color: color-mix(in srgb, var(--fg) 50%, transparent);
+      color: color-mix(in srgb, var(--fg) 50%, var(--bg));
       font-family: var(--font-label);
       font-size: 12px;
       font-weight: 500;
       line-height: normal;
       white-space: nowrap;
+      mix-blend-mode: normal;
     }
 
     /* Grey = still locked; reaching a checkpoint unlocks it for good */
@@ -476,7 +477,7 @@
   }
   </script>
   <script type="module">
-    import { initPath3D } from "./path3d.js?v=124";
+    import { initPath3D } from "./path3d.js?v=143";
 
     const data = window.TIMELINE_DATA;
     if (!data) {
@@ -499,26 +500,35 @@
     const metaNumber = document.getElementById("metaNumber");
     const metaName = document.getElementById("metaName");
     const metaCoords = document.getElementById("metaCoords");
-    const chromeEls = [
+    // Header stays solid during level fades (only coords ↔ go back morphs)
+    const headerEls = [
       document.querySelector(".site-title"),
       currentCoords,
       nightToggle,
-      document.querySelector(".site-footer"),
     ].filter(Boolean);
+    const siteFooter = document.querySelector(".site-footer");
+    // Landing chrome reveal includes header + footer
+    const chromeEls = [...headerEls, siteFooter].filter(Boolean);
+    let ctaRestartTimer = 0;
 
     const CHROME_FADE_MS = 2000;
     const CTA_DELAY_MS = 1000;
     const CTA_MORPH_MS = 1400; // appear-only morph (no hover morph)
+    const CTA_EXIT_MORPH_MS = 1100; // longer so the scramble reads before level fade-out
     const CTA_TEXT = "explore the path to the peak";
     const MORPH_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz0123456789#%*+=";
     const OUTRO_MORPH_MS = 3200; // longer than the CTA
     const OUTRO_TEXT = "We all walk the same path,\nbut for each of us it’s a different experience";
     const HEADER_MORPH_MS = 1200;
+    const NIGHT_MORPH_MS = 600;
+    const LIGHT_TEXT = "LIGHT";
+    const DARK_TEXT = "DARK";
     const COORDS_TEXT = "*coordinates*";
     const BACK_TEXT = "← GO BACK";
     const EXPLORE_UI_LEAD_MS = 1000; // explore chrome shows up this long before the fly-in lands
     let introDurationMs = 5200;
-    let ctaMorphStarted = false;
+    let ctaAppearMorphId = 0;
+    const exploreFooter = document.querySelector(".explore-footer");
 
     function hash01(str) {
       let h = 2166136261;
@@ -636,15 +646,19 @@
       for (const el of chromeEls) el.style.opacity = v;
     }
 
+    let ctaExitMorphId = 0;
     function startExploreCtaMorph() {
-      if (ctaMorphStarted) return;
-      ctaMorphStarted = true;
+      // Cancel any exit-in-progress and allow re-appear after go-back (like landing)
+      ctaExitMorphId += 1;
+      const id = ++ctaAppearMorphId;
       exploreCta.classList.add("is-ready");
       exploreCta.style.opacity = "0";
       exploreCta.style.pointerEvents = "none";
+      exploreCta.removeAttribute("aria-hidden");
       const t0 = performance.now();
       const ease = (x) => x * x * (3 - 2 * x);
       function frame(now) {
+        if (id !== ctaAppearMorphId) return;
         const u = Math.min(1, (now - t0) / CTA_MORPH_MS);
         const e = ease(u);
         // Light fade so the morph doesn't pop in at full strength
@@ -658,6 +672,34 @@
         exploreCta.style.opacity = "";
         exploreCta.style.pointerEvents = "";
         exploreCta.removeAttribute("aria-hidden");
+      }
+      requestAnimationFrame(frame);
+    }
+
+    // On explore click: scramble-out first, ahead of the rest of the chrome fade
+    function dismissExploreCtaMorph() {
+      if (!exploreCta.classList.contains("is-ready") && !exploreCta.textContent) return;
+      ctaAppearMorphId += 1; // cancel appear-in-progress
+      const id = ++ctaExitMorphId;
+      const from = exploreCta.textContent || CTA_TEXT;
+      exploreCta.style.pointerEvents = "none";
+      exploreCta.setAttribute("aria-hidden", "true");
+      const t0 = performance.now();
+      const ease = (x) => x * x * (3 - 2 * x);
+      function frame(now) {
+        if (id !== ctaExitMorphId) return;
+        const u = Math.min(1, (now - t0) / CTA_EXIT_MORPH_MS);
+        const e = ease(u);
+        exploreCta.style.opacity = String(1 - e);
+        // Scramble away L→R then empty (inverse of the appear morph)
+        exploreCta.textContent = morphText(from, 1 - e, "explore-cta-out");
+        if (u < 1) {
+          requestAnimationFrame(frame);
+          return;
+        }
+        exploreCta.textContent = "";
+        exploreCta.style.opacity = "0";
+        exploreCta.classList.remove("is-ready");
       }
       requestAnimationFrame(frame);
     }
@@ -701,6 +743,7 @@
       if (formedId !== lastFormedId) {
         lastFormedId = formedId;
         exploreMeta.classList.toggle("is-hidden", !formedItem);
+        exploreMeta.style.opacity = ""; // let CSS .is-hidden own visibility
         if (formedItem) {
           const pad = String(total).length;
           metaTime.textContent = formedItem.timeLocal ?? "";
@@ -792,16 +835,53 @@
       },
       onHoverItem: showCoords,
       onExploreProgress: syncExploreProgress,
-      onTransitionChange: (active, { durationMs = 0 } = {}) => {
+      // Level veil: footer + explore type. Header never fades.
+      onTransitionFade: (veil, { direction = "enter", exploreChrome } = {}) => {
+        if (siteFooter) siteFooter.style.opacity = String(Math.max(0, 1 - veil));
+        const chrome =
+          exploreChrome != null
+            ? exploreChrome
+            : direction === "leave"
+              ? Math.max(0, 1 - veil)
+              : 0;
+        const c = String(Math.max(0, Math.min(1, chrome)));
+        checkpointList.style.opacity = c;
+        if (exploreFooter) exploreFooter.style.opacity = c;
+      },
+      onTransitionChange: (active, { durationMs = 0, direction = "enter" } = {}) => {
         clearTimeout(exploreUiTimer);
+        clearTimeout(ctaRestartTimer);
         if (!active) {
-          document.documentElement.setAttribute("data-explore-ready", "");
+          if (siteFooter) siteFooter.style.opacity = "";
+          if (direction === "enter") {
+            document.documentElement.setAttribute("data-explore-ready", "");
+            checkpointList.style.opacity = "1";
+            if (exploreFooter) exploreFooter.style.opacity = "1";
+            // Clear inline so .is-hidden can hide meta while an image isn't formed
+            exploreMeta.style.opacity = "";
+          }
+          // Only after a real go-back — not on init cancelCamTransition
+          if (direction === "leave") {
+            document.documentElement.removeAttribute("data-explore-ready");
+            checkpointList.style.opacity = "0";
+            if (exploreFooter) exploreFooter.style.opacity = "0";
+            exploreMeta.style.opacity = "0";
+            ctaRestartTimer = window.setTimeout(() => {
+              if (document.documentElement.dataset.mode !== "overview") return;
+              startExploreCtaMorph();
+            }, CTA_DELAY_MS);
+          }
           return;
         }
         document.documentElement.removeAttribute("data-explore-ready");
-        exploreUiTimer = setTimeout(() => {
-          document.documentElement.setAttribute("data-explore-ready", "");
-        }, Math.max(0, durationMs - EXPLORE_UI_LEAD_MS));
+        if (direction === "enter") {
+          checkpointList.style.opacity = "0";
+          if (exploreFooter) exploreFooter.style.opacity = "0";
+          exploreMeta.style.opacity = "0";
+          exploreUiTimer = setTimeout(() => {
+            document.documentElement.setAttribute("data-explore-ready", "");
+          }, Math.max(0, durationMs - EXPLORE_UI_LEAD_MS));
+        }
       },
       onIntroProgress: (u, meta = {}) => {
         if (meta.durationMs) introDurationMs = meta.durationMs;
@@ -814,7 +894,7 @@
         setChromeOpacity(1);
         for (const el of chromeEls) el.style.opacity = "";
         document.documentElement.dataset.chrome = "1";
-        // CTA morphs in 2s after the rest of the type is fully up
+        // CTA morphs in after the rest of the type is fully up
         window.setTimeout(() => {
           if (document.documentElement.dataset.mode === "explore") return;
           startExploreCtaMorph();
@@ -857,7 +937,10 @@
     });
 
     for (const btn of document.querySelectorAll("button[data-mode]")) {
-      btn.addEventListener("click", () => app?.setMode?.(btn.dataset.mode));
+      btn.addEventListener("click", () => {
+        if (btn.dataset.mode === "explore") dismissExploreCtaMorph();
+        app?.setMode?.(btn.dataset.mode);
+      });
     }
 
     explorePlay.addEventListener("click", () => {
@@ -866,11 +949,29 @@
       syncExplorePlayUi(!!playing);
     });
 
+    let nightMorphId = 0;
     function setNightUi(on) {
       document.documentElement.classList.toggle("night", on);
       nightToggle.setAttribute("aria-pressed", on ? "true" : "false");
-      nightToggle.textContent = on ? "DARK" : "LIGHT";
       app?.setNightMode?.(on);
+
+      const from = nightToggle.textContent || (on ? LIGHT_TEXT : DARK_TEXT);
+      const to = on ? DARK_TEXT : LIGHT_TEXT;
+      if (from === to) {
+        nightToggle.textContent = to;
+        return;
+      }
+      const id = ++nightMorphId;
+      const t0 = performance.now();
+      const ease = (x) => x * x * (3 - 2 * x);
+      function frame(now) {
+        if (id !== nightMorphId) return;
+        const u = Math.min(1, (now - t0) / NIGHT_MORPH_MS);
+        nightToggle.textContent = morphBetween(from, to, ease(u), "night-toggle");
+        if (u < 1) requestAnimationFrame(frame);
+        else nightToggle.textContent = to;
+      }
+      requestAnimationFrame(frame);
     }
 
     nightToggle.addEventListener("click", () => {
