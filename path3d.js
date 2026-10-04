@@ -558,10 +558,13 @@ export function initPath3D({
     p.autoplayFrame = captureFrame(realForSlot, "autoplay");
   }
 
+  const lastPlacementDist = placements[placements.length - 1]?.dist ?? 0;
   const exploreTotal = Math.max(
     path.total * PATH_COMPRESS + START_LEAD_M,
-    (placements[placements.length - 1]?.dist ?? 0) + START_AHEAD_M + 8
+    lastPlacementDist + START_AHEAD_M + 8
   );
+  // Show the closing line early in the final stretch after the last photo
+  const outroRevealDist = lastPlacementDist + (exploreTotal - lastPlacementDist) * 0.125;
 
   const scene = new THREE.Scene();
   scene.background = null;
@@ -1813,7 +1816,7 @@ export function initPath3D({
       formedItem: formed?.item ?? null,
       formedIndex: formed?.index ?? -1,
       total: placements.length,
-      atEnd: walkDist >= exploreTotal - 0.5,
+      atEnd: walkDist >= outroRevealDist,
     });
 
     // Prefer near collapsing clouds + far mist

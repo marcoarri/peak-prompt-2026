@@ -208,13 +208,18 @@
       outline: none;
     }
 
-    /* End of the walk — wraps on several lines, centred, not interactive */
+    /* End of the walk — two centred lines, not interactive */
     .explore-outro {
       top: 50%;
+      left: 50%;
+      right: auto;
       transform: translate(-50%, -50%);
       width: min(1100px, calc(100% - 2 * var(--edge)));
-      white-space: normal;
+      margin: 0;
+      white-space: pre-line;
       text-align: center;
+      text-decoration: none;
+      line-height: 0.9;
     }
 
     html:not([data-mode="explore"]) .explore-outro { display: none; }
@@ -285,11 +290,10 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      mix-blend-mode: exclusion;
     }
 
     .explore-checkpoints button {
-      color: rgba(255, 255, 255, 0.5);
+      color: color-mix(in srgb, var(--fg) 50%, transparent);
       font-family: var(--font-label);
       font-size: 12px;
       font-weight: 500;
@@ -299,7 +303,7 @@
 
     /* Grey = still locked; reaching a checkpoint unlocks it for good */
     .explore-checkpoints button:disabled { cursor: default; }
-    .explore-checkpoints button.is-unlocked { color: #fff; }
+    .explore-checkpoints button.is-unlocked { color: var(--fg); }
 
     .explore-checkpoints button:not(:disabled):hover,
     .explore-checkpoints button:not(:disabled):focus-visible {
@@ -316,7 +320,8 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      color: var(--fg);
+      color: #fff;
+      mix-blend-mode: difference;
       font-size: 14px;
       font-weight: 500;
       line-height: normal;
@@ -471,7 +476,7 @@
   }
   </script>
   <script type="module">
-    import { initPath3D } from "./path3d.js?v=121";
+    import { initPath3D } from "./path3d.js?v=124";
 
     const data = window.TIMELINE_DATA;
     if (!data) {
@@ -507,7 +512,7 @@
     const CTA_TEXT = "explore the path to the peak";
     const MORPH_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz0123456789#%*+=";
     const OUTRO_MORPH_MS = 3200; // longer than the CTA
-    const OUTRO_TEXT = "We all walk the same path, but for each of us it’s a different experience";
+    const OUTRO_TEXT = "We all walk the same path,\nbut for each of us it’s a different experience";
     const HEADER_MORPH_MS = 1200;
     const COORDS_TEXT = "*coordinates*";
     const BACK_TEXT = "← GO BACK";
@@ -534,7 +539,7 @@
       let out = "";
       for (let i = 0; i < target.length; i++) {
         const ch = target[i];
-        if (ch === " " || ch === "-" || ch === "." || ch === "…") {
+        if (ch === " " || ch === "-" || ch === "." || ch === "…" || ch === "\n" || ch === ",") {
           out += ch;
           continue;
         }
