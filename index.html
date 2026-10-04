@@ -1,18 +1,67 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="it" data-mode="overview">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Peak Prompt — 3D</title>
   <style>
+    @font-face {
+      font-family: "ABC Gaisyr Mono";
+      src: url("assets/fonts/abc-gaisyr/ABCGaisyrMono-Book.otf") format("opentype");
+      font-weight: 350;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: "ABC Gaisyr Mono";
+      src: url("assets/fonts/abc-gaisyr/ABCGaisyrMono-Regular.otf") format("opentype");
+      font-weight: 400;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: "ABC Gaisyr Mono";
+      src: url("assets/fonts/abc-gaisyr/ABCGaisyrMono-Medium.otf") format("opentype");
+      font-weight: 500;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: "Founders Grotesk Mono";
+      src: url("assets/fonts/founders-grotesk-mono/FoundersGroteskMono-Medium.otf") format("opentype");
+      font-weight: 500;
+      font-display: swap;
+    }
+
+    :root {
+      --fg: #000;
+      --bg: #fff;
+      --edge: 24px;
+      --font-display: "ABC Gaisyr Mono", ui-monospace, monospace;
+      --font-label: "Founders Grotesk Mono", ui-monospace, monospace;
+    }
+
+    html.night {
+      --fg: #fff;
+      --bg: #000;
+    }
+
     * { box-sizing: border-box; }
     html, body {
       margin: 0;
       width: 100%;
       height: 100%;
-      background: #fff;
+      background: var(--bg);
+      color: var(--fg);
       overflow: hidden;
-      font-family: system-ui, sans-serif;
+      font-family: var(--font-display);
+    }
+
+    button {
+      appearance: none;
+      border: 0;
+      padding: 0;
+      background: none;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
     }
 
     #path3dStage {
@@ -20,7 +69,7 @@
       inset: 0;
       width: 100%;
       height: 100%;
-      background: #fff;
+      background: var(--bg);
     }
 
     #path3dStage canvas {
@@ -33,37 +82,203 @@
 
     #path3dStage canvas:active { cursor: grabbing; }
 
-    .mode-switch {
-      position: fixed;
-      top: 1rem;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 3;
+    /* Checkpoint pins (built by path3d.js, positioned over the 3D anchors) */
+    .checkpoint-pin {
+      position: absolute;
+      left: 0;
+      top: 0;
       display: flex;
-      padding: 0.2rem;
-      gap: 0.15rem;
-      background: rgba(255, 255, 255, 0.92);
-      border: 1px solid #d0d0d0;
-      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
-    }
-
-    .mode-switch button {
-      appearance: none;
-      border: 0;
-      background: transparent;
-      color: #555;
-      padding: 0.55rem 1rem;
-      font: inherit;
-      font-size: 0.8rem;
-      font-weight: 650;
-      letter-spacing: 0.02em;
-      cursor: pointer;
+      align-items: center;
+      gap: 4.4px;
+      color: var(--fg);
+      font-family: var(--font-label);
+      font-size: 12px;
+      font-weight: 500;
+      line-height: normal;
       white-space: nowrap;
     }
 
-    .mode-switch button[aria-pressed="true"] {
-      background: #111;
+    .checkpoint-pin[hidden] { display: none; }
+    .checkpoint-pin img { display: block; }
+    html.night .checkpoint-pin img { filter: invert(1); }
+    .checkpoint-pin span { margin-bottom: 4.4px; }
+    .checkpoint-pin:hover span,
+    .checkpoint-pin:focus-visible span { text-decoration: underline; }
+
+    /* Page chrome */
+    .site-title {
+      position: fixed;
+      top: 9.5px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 3;
+      margin: 0;
       color: #fff;
+      mix-blend-mode: difference;
+      font-size: 24px;
+      font-weight: 350;
+      line-height: normal;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    .current-coords {
+      position: fixed;
+      top: 15px;
+      left: var(--edge);
+      z-index: 3;
+      margin: 0;
+      font-size: 16px;
+      font-weight: 400;
+      line-height: normal;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    .night-toggle {
+      position: fixed;
+      top: 15px;
+      right: var(--edge);
+      z-index: 3;
+      color: #fff;
+      mix-blend-mode: exclusion;
+      font-size: 16px;
+      font-weight: 400;
+      line-height: normal;
+      transition: opacity 0.2s ease;
+    }
+
+    .night-toggle:hover,
+    .night-toggle:focus-visible {
+      opacity: 0.5;
+      outline: none;
+    }
+
+    .peak-info {
+      position: fixed;
+      top: 50%;
+      left: var(--edge);
+      z-index: 3;
+      margin: 0;
+      font-family: var(--font-label);
+      font-size: 12px;
+      font-weight: 500;
+      line-height: normal;
+      white-space: pre;
+      pointer-events: none;
+    }
+
+    .explore-cta {
+      position: fixed;
+      top: calc(50% - 31.2px);
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 3;
+      color: #000;
+      mix-blend-mode: exclusion;
+      font-size: 48px;
+      font-weight: 350;
+      line-height: normal;
+      white-space: nowrap;
+      text-decoration: underline;
+      text-decoration-thickness: 3px;
+      text-underline-position: auto;        /* la linea torna a passare attraverso le discendenti */
+      text-underline-offset: 10px;           /* distanza dalla linea di base: regola a piacere */
+      text-decoration-skip-ink: auto;       /* il browser interrompe la linea attorno alle discendenti */
+
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
+    }
+
+    html.night .explore-cta {
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
+    }
+
+    .site-footer {
+      position: fixed;
+      bottom: 12.3px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 3;
+      width: min(1068px, calc(100% - 2 * var(--edge)));
+      display: grid;
+      gap: 5.2px;
+      color: #000;
+      font-size: 10px;
+      font-weight: 500;
+      line-height: normal;
+      text-align: center;
+    }
+
+    html.night .site-footer { color: #fff; }
+    .site-footer p { margin: 0; }
+    .site-footer a { color: inherit; text-underline-position: from-font; }
+
+    .site-footer-meta {
+      display: grid;
+      grid-template-columns: repeat(3, 263px);
+      justify-content: center;
+    }
+
+    /* Explore mode (not in the Figma frame yet — same type system) */
+    .back-to-overview {
+      position: fixed;
+      top: 15px;
+      left: var(--edge);
+      z-index: 3;
+      font-size: 16px;
+      font-weight: 400;
+      line-height: normal;
+    }
+
+    .explore-play {
+      position: fixed;
+      bottom: var(--edge);
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 3;
+      font-size: 16px;
+      font-weight: 400;
+      line-height: normal;
+    }
+
+    .explore-play[aria-pressed="true"] { text-decoration: underline; }
+
+    .checkpoint-list {
+      position: fixed;
+      top: 50%;
+      left: var(--edge);
+      transform: translateY(-50%);
+      z-index: 3;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      max-height: calc(100vh - 220px);
+      overflow-y: auto;
+    }
+
+    .checkpoint-list button {
+      font-family: var(--font-label);
+      font-size: 12px;
+      font-weight: 500;
+      line-height: normal;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .checkpoint-list button:hover,
+    .checkpoint-list button:focus-visible {
+      text-decoration: underline;
+      outline: none;
+    }
+
+    html:not([data-mode="explore"]) .back-to-overview,
+    html:not([data-mode="explore"]) .explore-play,
+    html:not([data-mode="explore"]) .checkpoint-list,
+    html[data-mode="explore"] .current-coords,
+    html[data-mode="explore"] .peak-info,
+    html[data-mode="explore"] .explore-cta,
+    html[data-mode="explore"] .site-footer {
+      display: none;
     }
 
     .lightbox {
@@ -107,61 +322,47 @@
     }
 
     .lightbox button {
-      appearance: none;
       border: 1px solid #333;
       background: #fff;
       color: #111;
       padding: 0.45rem 0.8rem;
-      font: inherit;
       font-size: 0.82rem;
-      font-weight: 600;
-      cursor: pointer;
+      font-weight: 500;
     }
 
-    .point-size {
-      position: fixed;
-      bottom: 1rem;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 3;
-      display: flex;
-      align-items: center;
-      gap: 0.65rem;
-      padding: 0.55rem 0.85rem;
-      background: rgba(255, 255, 255, 0.92);
-      border: 1px solid #d0d0d0;
-      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
-      color: #333;
-      font-size: 0.78rem;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-
-    .point-size input[type="range"] {
-      width: 140px;
-      accent-color: #111;
-    }
-
-    .point-size output {
-      min-width: 2.6em;
-      font-variant-numeric: tabular-nums;
-      color: #111;
-    }
   </style>
 </head>
 <body>
   <div id="path3dStage"></div>
 
-  <div class="mode-switch" role="group" aria-label="Modalità di visualizzazione">
-    <button type="button" data-mode="overview" aria-pressed="true">Volumetrica</button>
-    <button type="button" data-mode="explore" aria-pressed="false">Esplora</button>
-  </div>
+  <h1 class="site-title">PEAK PROMPT</h1>
 
-  <label class="point-size" for="pointMul">
-    Pallini ×
-    <input id="pointMul" type="range" min="0.25" max="3" step="0.05" value="2.5" />
-    <output id="pointMulVal" for="pointMul">2.50×</output>
-  </label>
+  <p class="current-coords" id="currentCoords" aria-live="polite">*current coordinates*</p>
+
+  <button type="button" class="night-toggle" id="nightToggle" aria-pressed="false">LIGHT</button>
+
+  <p class="peak-info">peak altitude:
+dislivello:
+time spent:
+medium pase:</p>
+
+  <button type="button" class="explore-cta" data-mode="explore">explore the path to the peak</button>
+
+  <footer class="site-footer">
+    <p>We all walk the same path, but for each of us it’s a different experience.<br />
+      The workshop is organised by Pittogramma (<a href="https://www.instagram.com/pittogramma.xyz/" target="_blank" rel="noopener">@pittogramma.xyz</a>) and led by Giga (<a href="https://www.instagram.com/gigadesignstudio/" target="_blank" rel="noopener">@gigadesignstudio</a>), a studio where design and technology merge into a creative synthesis.</p>
+    <div class="site-footer-meta">
+      <span>3—days workshop</span>
+      <span>Lagazuoi EXPO Dolomiti</span>
+      <span>2—4 october 2026</span>
+    </div>
+  </footer>
+
+  <button type="button" class="back-to-overview" data-mode="overview">← overview</button>
+
+  <button type="button" class="explore-play" id="explorePlay" aria-pressed="false">play 15×</button>
+
+  <nav class="checkpoint-list" id="checkpointList" aria-label="Checkpoint"></nav>
 
   <div class="lightbox" id="lightbox" hidden>
     <div class="lightbox-inner">
@@ -183,7 +384,7 @@
   }
   </script>
   <script type="module">
-    import { initPath3D } from "./path3d.js?v=71";
+    import { initPath3D } from "./path3d.js?v=105";
 
     const data = window.TIMELINE_DATA;
     if (!data) {
@@ -194,9 +395,36 @@
     const lightbox = document.getElementById("lightbox");
     const stage = document.getElementById("lightboxStage");
     const lbMeta = document.getElementById("lightboxMeta");
-    const modeButtons = document.querySelectorAll(".mode-switch [data-mode]");
-    const pointMulInput = document.getElementById("pointMul");
-    const pointMulVal = document.getElementById("pointMulVal");
+    const currentCoords = document.getElementById("currentCoords");
+    const nightToggle = document.getElementById("nightToggle");
+    const explorePlay = document.getElementById("explorePlay");
+    const checkpointList = document.getElementById("checkpointList");
+
+    function syncExplorePlayUi(playing) {
+      const on = playing ?? explorePlay.getAttribute("aria-pressed") === "true";
+      const mul = app?.getExploreAutoplaySpeed?.() ?? 15;
+      explorePlay.setAttribute("aria-pressed", on ? "true" : "false");
+      explorePlay.textContent = on ? `pause ${mul}×` : `play ${mul}×`;
+    }
+
+    // 46.519012 → 46°31'8.44"N (seconds to 2 decimals, trailing zeros dropped)
+    function toDms(value, pos, neg) {
+      const centi = Math.round(Math.abs(value) * 360000);
+      const deg = Math.floor(centi / 360000);
+      const min = Math.floor((centi % 360000) / 6000);
+      const sec = parseFloat(((centi % 6000) / 100).toFixed(2));
+      return `${deg}°${min}'${sec}"${value < 0 ? neg : pos}`;
+    }
+
+    function showCoords(item) {
+      if (item?.lat == null || item?.lon == null) {
+        currentCoords.textContent = "*current coordinates*";
+        return;
+      }
+      const lat = toDms(Number(item.lat), "N", "S");
+      const lon = toDms(Number(item.lon), "E", "W");
+      currentCoords.textContent = `${lat}, ${lon}`;
+    }
 
     function openLightbox(item) {
       stage.replaceChildren();
@@ -232,43 +460,73 @@
     lightbox.addEventListener("click", (e) => {
       if (e.target === lightbox) closeLightbox();
     });
-    window.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") closeLightbox();
-    });
-
     const app = initPath3D({
       container: document.getElementById("path3dStage"),
       data,
       onSelect: openLightbox,
+      onExploreAutoplayChange: (playing) => syncExplorePlayUi(playing),
+      onModeChange: (mode) => {
+        document.documentElement.dataset.mode = mode;
+        showCoords(null);
+        if (mode !== "explore") syncExplorePlayUi(false);
+      },
+      onHoverItem: showCoords,
+      checkpointIconSrc: "assets/ui/checkpoint.svg",
       initialMode: "overview",
     });
 
-    function setUiMode(mode) {
-      for (const btn of modeButtons) {
-        btn.setAttribute("aria-pressed", btn.dataset.mode === mode ? "true" : "false");
+    function buildCheckpointList() {
+      const checkpoints = app?.getCheckpoints?.() ?? [];
+      checkpointList.replaceChildren();
+      for (const cp of checkpoints) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.dataset.id = cp.id;
+        const elev = cp.ele != null ? `${Math.round(cp.ele)} m` : "—";
+        btn.textContent = `checkpoint-${cp.index} · ${elev}`;
+        checkpointList.appendChild(btn);
       }
-      app?.setMode?.(mode);
     }
 
-    document.querySelector(".mode-switch").addEventListener("click", (e) => {
-      const btn = e.target.closest("[data-mode]");
+    buildCheckpointList();
+
+    checkpointList.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-id]");
       if (!btn) return;
-      setUiMode(btn.dataset.mode);
+      app?.goToCheckpoint?.(btn.dataset.id);
+      syncExplorePlayUi(false);
     });
 
-    function syncPointMulUi(mul) {
-      const v = Number(mul);
-      pointMulInput.value = String(v);
-      pointMulVal.textContent = `${v.toFixed(2)}×`;
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeLightbox();
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (!/^[1-9]$/.test(e.key)) return;
+      if (app?.getMode?.() !== "explore") return;
+      app.setExploreAutoplaySpeed?.(e.key);
+      syncExplorePlayUi();
+    });
+
+    for (const btn of document.querySelectorAll("button[data-mode]")) {
+      btn.addEventListener("click", () => app?.setMode?.(btn.dataset.mode));
     }
 
-    pointMulInput.addEventListener("input", () => {
-      const mul = app?.setPointMul?.(pointMulInput.value);
-      if (mul != null) syncPointMulUi(mul);
-      else syncPointMulUi(pointMulInput.value);
+    explorePlay.addEventListener("click", () => {
+      const next = explorePlay.getAttribute("aria-pressed") !== "true";
+      const playing = app?.setExploreAutoplay?.(next);
+      syncExplorePlayUi(!!playing);
     });
 
-    if (app?.getPointMul) syncPointMulUi(app.getPointMul());
+    function setNightUi(on) {
+      document.documentElement.classList.toggle("night", on);
+      nightToggle.setAttribute("aria-pressed", on ? "true" : "false");
+      nightToggle.textContent = on ? "DARK" : "LIGHT";
+      app?.setNightMode?.(on);
+    }
+
+    nightToggle.addEventListener("click", () => {
+      const next = nightToggle.getAttribute("aria-pressed") !== "true";
+      setNightUi(next);
+    });
   </script>
 </body>
 </html>

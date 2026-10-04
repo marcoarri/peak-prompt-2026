@@ -5,12 +5,14 @@ from __future__ import annotations
 
 import bisect
 import json
+import struct
 import subprocess
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from PIL import Image, ExifTags
+from PIL.ExifTags import IFD
 
 ROOT = Path(__file__).resolve().parent
 FOTO = ROOT / "assets" / "foto"
@@ -96,6 +98,43 @@ def jpeg_time(path: Path):
     hh, mm = map(int, off[1:].split(":"))
     tz = timezone(sign * timedelta(hours=hh, minutes=mm))
     return naive.replace(tzinfo=tz)
+
+
+def apple_acceleration_vector(path: Path):
+    """Apple MakerNote tag 0x0008 — gravity vector in device coords (x,y,z)."""
+    try:
+        mn = Image.open(path).getexif().get_ifd(IFD.Exif).get(37500)
+    except Exception:
+        return None
+    if not mn or not mn.startswith(b"Apple iOS"):
+        return None
+    mm = mn.find(b"MM")
+    if mm < 0:
+        return None
+    tiff = mn[mm:]
+    count = struct.unpack(">H", tiff[2:4])[0]
+    pos = 4
+    for _ in range(count):
+        if pos + 12 > len(tiff):
+            break
+        tag, typ, cnt = struct.unpack(">HHI", tiff[pos : pos + 8])
+        val = tiff[pos + 8 : pos + 12]
+        pos += 12
+        if tag != 0x0008:
+            continue
+        if typ != 10 or cnt != 3:  # SRATIONAL × 3
+            return None
+        off = struct.unpack(">I", val)[0]
+        # Offsets are relative to the MakerNote start (not the TIFF header)
+        data = mn[off : off + 24]
+        if len(data) < 24:
+            return None
+        out = []
+        for i in range(3):
+            num, den = struct.unpack(">ii", data[i * 8 : i * 8 + 8])
+            out.append(round(num / den, 6) if den else 0.0)
+        return out
+    return None
 
 
 def container_time(path: Path):
@@ -189,21 +228,23 @@ def main():
             t, source = media_time(path)
         t_utc = t.astimezone(timezone.utc)
         pt, delta = nearest_point(track, times, t_utc)
-        items.append(
-            {
-                "id": path.stem,
-                "file": path.name,
-                **web_fields(manifest.get(path.stem), f"assets/foto/{path.name}"),
-                "kind": kind,
-                "time": t_utc.isoformat().replace("+00:00", "Z"),
-                "timeLocal": t.astimezone(LOCAL_TZ).strftime("%H:%M:%S"),
-                "timeSource": source,
-                "matchDeltaSec": round(delta, 1),
-                "lat": pt["lat"],
-                "lon": pt["lon"],
-                "ele": round(pt["ele"], 1) if pt["ele"] is not None else None,
-            }
-        )
+        accel = apple_acceleration_vector(path) if kind == "photo" else None
+        item = {
+            "id": path.stem,
+            "file": path.name,
+            **web_fields(manifest.get(path.stem), f"assets/foto/{path.name}"),
+            "kind": kind,
+            "time": t_utc.isoformat().replace("+00:00", "Z"),
+            "timeLocal": t.astimezone(LOCAL_TZ).strftime("%H:%M:%S"),
+            "timeSource": source,
+            "matchDeltaSec": round(delta, 1),
+            "lat": pt["lat"],
+            "lon": pt["lon"],
+            "ele": round(pt["ele"], 1) if pt["ele"] is not None else None,
+        }
+        if accel:
+            item["accel"] = accel
+        items.append(item)
     items.sort(key=lambda x: x["time"])
 
     # audio: agganciati alla traccia solo se registrati durante la salita

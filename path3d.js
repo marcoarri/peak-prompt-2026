@@ -41,6 +41,32 @@ const MIN_EXPLORE_GAP_M = 10;
 // Light GPS denoise only — keep real bends, just kill harsh spikes
 const PATH_SMOOTH_PASSES = 1;
 const PATH_SMOOTH_RADIUS = 2;
+// Autoplay-only path: heavy smooth + resample (manual scroll keeps explore curve)
+const AUTOPLAY_SMOOTH_PASSES = 6;
+const AUTOPLAY_SMOOTH_RADIUS = 12;
+const AUTOPLAY_RESAMPLE_N = 160;
+const AUTOPLAY_LUT_N = 720;
+const AUTOPLAY_MAX_CLOUDS = 6;
+// Overview volumetric mass
+const OVERVIEW_SPREAD = 1.15; // +15% spacing between images
+const OVERVIEW_CLOUD_SCALE = 9.5;
+const OVERVIEW_CLOUD_LONG = 80; // sparse grid — all media visible at once
+const OVERVIEW_DISP_MUL = 2; // +100% displacement vs base exploded mist
+const POINT_MUL = 2.5;
+const DEFAULT_ACCEL = [0, -1, 0]; // upright portrait fallback
+// Covered snow cannons photographed along the trail (user-confirmed)
+const SPUTANEVE_IDS = [
+  "IMG_6877",
+  "IMG_6885",
+  "IMG_6887",
+  "IMG_6897",
+  "IMG_6906",
+  "IMG_6911",
+  "IMG_6922",
+  "IMG_6934",
+  "IMG_6987",
+  "IMG_7067",
+];
 
 function projectFactory(track) {
   const lats = track.map((p) => p.lat);
@@ -111,23 +137,26 @@ function buildPath(track, toVec3) {
     return cum[lo] + (cum[hi] - cum[lo]) * u;
   }
 
-  return { pts, cum, total, atDistance, distanceAtTime };
+  // Overall hike pace (m/s) — autoplay uses this constant rate (not GPS spikes)
+  const durationSec = Math.max(1, (pts[pts.length - 1].t - pts[0].t) / 1000);
+  const avgSpeed = THREE.MathUtils.clamp(total / durationSec, 0.15, 1.6);
+
+  return { pts, cum, total, atDistance, distanceAtTime, avgSpeed };
 }
 
 /** Light moving-average denoise for explore POV — preserves path shape */
-function buildExploreCurve(pathPts) {
-  if (pathPts.length < 2) return null;
-  let pts = pathPts.map((p) => p.pos.clone());
-  for (let pass = 0; pass < PATH_SMOOTH_PASSES; pass++) {
+function smoothPathPoints(pathPts, passes, radius) {
+  let pts = pathPts.map((p) => (p.pos ? p.pos.clone() : p.clone()));
+  for (let pass = 0; pass < passes; pass++) {
     const next = pts.map((p) => p.clone());
     for (let i = 0; i < pts.length; i++) {
       let ax = 0;
       let ay = 0;
       let az = 0;
       let wsum = 0;
-      for (let k = -PATH_SMOOTH_RADIUS; k <= PATH_SMOOTH_RADIUS; k++) {
+      for (let k = -radius; k <= radius; k++) {
         const j = THREE.MathUtils.clamp(i + k, 0, pts.length - 1);
-        const w = PATH_SMOOTH_RADIUS + 1 - Math.abs(k);
+        const w = radius + 1 - Math.abs(k);
         ax += pts[j].x * w;
         ay += pts[j].y * w;
         az += pts[j].z * w;
@@ -137,7 +166,40 @@ function buildExploreCurve(pathPts) {
     }
     pts = next;
   }
+  return pts;
+}
+
+function resamplePolyline(pts, count) {
+  if (pts.length < 2) return pts.map((p) => p.clone());
+  const seg = [0];
+  for (let i = 1; i < pts.length; i++) {
+    seg.push(seg[i - 1] + pts[i].distanceTo(pts[i - 1]));
+  }
+  const total = seg[seg.length - 1] || 1;
+  const out = [];
+  let j = 0;
+  for (let i = 0; i < count; i++) {
+    const d = (i / Math.max(1, count - 1)) * total;
+    while (j < seg.length - 2 && seg[j + 1] < d) j++;
+    const span = Math.max(1e-6, seg[j + 1] - seg[j]);
+    const u = THREE.MathUtils.clamp((d - seg[j]) / span, 0, 1);
+    out.push(pts[j].clone().lerp(pts[j + 1], u));
+  }
+  return out;
+}
+
+function buildExploreCurve(pathPts) {
+  if (pathPts.length < 2) return null;
+  const pts = smoothPathPoints(pathPts, PATH_SMOOTH_PASSES, PATH_SMOOTH_RADIUS);
   return new THREE.CatmullRomCurve3(pts, false, "catmullrom", 0.15);
+}
+
+/** Ultra-smooth ribbon used only while autoplay is running */
+function buildAutoplayCurve(pathPts) {
+  if (pathPts.length < 2) return null;
+  const smoothed = smoothPathPoints(pathPts, AUTOPLAY_SMOOTH_PASSES, AUTOPLAY_SMOOTH_RADIUS);
+  const pts = resamplePolyline(smoothed, AUTOPLAY_RESAMPLE_N);
+  return new THREE.CatmullRomCurve3(pts, false, "catmullrom", 0.05);
 }
 
 function hash01(str) {
@@ -147,6 +209,34 @@ function hash01(str) {
     h = Math.imul(h, 16777619);
   }
   return (h >>> 0) / 4294967295;
+}
+
+/** Orient a capture from Apple AccelerationVector (device gravity) + preferred look. */
+function quatFromAccel(accel, lookDir, out = new THREE.Quaternion()) {
+  const g = new THREE.Vector3(
+    Number(accel?.[0]) || 0,
+    Number(accel?.[1]) || 0,
+    Number(accel?.[2]) || 0
+  );
+  if (g.lengthSq() < 1e-8) g.set(0, -1, 0);
+  else g.normalize();
+
+  const worldDown = new THREE.Vector3(0, -1, 0);
+  out.setFromUnitVectors(g, worldDown);
+
+  // Twist around gravity so camera look (−Z device) matches lookDir azimuth
+  const lookNow = new THREE.Vector3(0, 0, -1).applyQuaternion(out);
+  const a = lookNow.clone();
+  a.y = 0;
+  const b = lookDir.clone();
+  b.y = 0;
+  if (a.lengthSq() > 1e-8 && b.lengthSq() > 1e-8) {
+    a.normalize();
+    b.normalize();
+    const twist = new THREE.Quaternion().setFromUnitVectors(a, b);
+    out.premultiply(twist);
+  }
+  return out;
 }
 
 function loadTexture(url, loader, { forCloud = false } = {}) {
@@ -215,6 +305,8 @@ function makeCloudMaterial(tex, aspect) {
       uFogFar: { value: FOG_FAR_M },
       uFogColor: { value: new THREE.Color(0xffffff) },
       uPlane: { value: new THREE.Vector2(w, h) },
+      uTime: { value: 0 },
+      uWiggle: { value: 0 }, // meters — explore mist only
     },
     transparent: false,
     depthTest: true,
@@ -226,6 +318,7 @@ function makeCloudMaterial(tex, aspect) {
       uniform sampler2D uColor;
       uniform float uDisp, uSize, uSpread, uScale, uPointMul;
       uniform float uFogNear, uFogFar;
+      uniform float uTime, uWiggle;
       uniform vec2 uPlane;
       varying vec3 vColor;
       varying float vFog;
@@ -263,6 +356,20 @@ function makeCloudMaterial(tex, aspect) {
         latAmp *= mix(0.55, 1.15, smoothstep(0.05, 0.55, r));
         pos.xy += latDir * latAmp;
 
+        // Soft live wiggle — stronger while exploded, fades as the image reforms
+        if (uWiggle > 1e-5) {
+          float ph = n0 * 6.2831853;
+          float ph2 = n1 * 6.2831853;
+          float t = uTime;
+          vec3 wig = vec3(
+            sin(t * 1.55 + ph) * 0.55 + sin(t * 2.7 + ph2) * 0.35,
+            cos(t * 1.75 + ph2) * 0.55 + sin(t * 2.2 + ph) * 0.35,
+            sin(t * 2.05 + ph * 1.3) * 0.45
+          );
+          float live = mix(0.2, 1.0, clamp(uDisp / max(1e-3, uPlane.y * 1.2), 0.0, 1.0));
+          pos += wig * uWiggle * live;
+        }
+
         vColor = color;
         vec4 mv = modelViewMatrix * vec4(pos, 1.0);
         gl_Position = projectionMatrix * mv;
@@ -288,7 +395,16 @@ function makeCloudMaterial(tex, aspect) {
   });
 }
 
-export function initPath3D({ container, data, onSelect, initialMode = "overview" }) {
+export function initPath3D({
+  container,
+  data,
+  onSelect,
+  onExploreAutoplayChange,
+  onModeChange,
+  onHoverItem,
+  checkpointIconSrc,
+  initialMode = "overview",
+}) {
   if (!container || !data?.track?.length) return null;
 
   let mode = initialMode === "explore" ? "explore" : "overview";
@@ -301,9 +417,11 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
   const { toVec3 } = projectFactory(track);
   const path = buildPath(track, toVec3);
 
-  // Heavily smoothed + exaggerated curve for explore POV (overview keeps raw path)
+  // Explore: light denoise. Autoplay: separate ultra-smooth ribbon (+ LUT).
   const exploreCurve = buildExploreCurve(path.pts);
   const exploreCurveLen = exploreCurve?.getLength() || path.total;
+  const autoplayCurve = buildAutoplayCurve(path.pts);
+  const autoplayCurveLen = autoplayCurve?.getLength() || path.total;
 
   const _fA = new THREE.Vector3();
   const _fB = new THREE.Vector3();
@@ -319,13 +437,14 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
   const _pTan = new THREE.Vector3();
   const _pSide = new THREE.Vector3();
   const _pUp = new THREE.Vector3();
-  function writeFrame(realDist, pos, tan, side, up, useExploreCurve = true) {
+  /** @param {"raw"|"explore"|"autoplay"} curveMode */
+  function writeFrame(realDist, pos, tan, side, up, curveMode = "explore") {
     // Sample on-path, then extend past the GPX end along the final tangent so
     // padded explore slots near the summit don't all collapse onto one point.
     const overshoot = Math.max(0, realDist - path.total);
     const d = THREE.MathUtils.clamp(realDist, 0, path.total);
-    const curve = useExploreCurve ? exploreCurve : null;
-    const curveLen = useExploreCurve ? exploreCurveLen : 0;
+    const curve = curveMode === "autoplay" ? autoplayCurve : curveMode === "explore" ? exploreCurve : null;
+    const curveLen = curveMode === "autoplay" ? autoplayCurveLen : curveMode === "explore" ? exploreCurveLen : 0;
     if (curve && curveLen > 1e-3) {
       const u = THREE.MathUtils.clamp(d / path.total, 0, 1);
       const span = Math.min(0.02, 12 / curveLen);
@@ -350,6 +469,51 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
     up.crossVectors(side, tan).normalize();
   }
 
+  function captureFrame(realDist, curveMode) {
+    writeFrame(realDist, _pPos, _pTan, _pSide, _pUp, curveMode);
+    return {
+      pos: _pPos.clone(),
+      tan: _pTan.clone(),
+      side: _pSide.clone(),
+      up: _pUp.clone(),
+    };
+  }
+
+  function applyCapturedFrame(frame, pos, tan, side, up) {
+    pos.copy(frame.pos);
+    tan.copy(frame.tan);
+    side.copy(frame.side);
+    up.copy(frame.up);
+  }
+
+  // Autoplay camera LUT — O(1) lerp, no CatmullRom in the hot loop
+  const autoplayLut = [];
+  {
+    const n = AUTOPLAY_LUT_N;
+    for (let i = 0; i < n; i++) {
+      const realDist = (i / Math.max(1, n - 1)) * path.total;
+      autoplayLut.push(captureFrame(realDist, "autoplay"));
+    }
+  }
+  function sampleAutoplayLut(realDist, pos, tan, side, up) {
+    const overshoot = Math.max(0, realDist - path.total);
+    const d = THREE.MathUtils.clamp(realDist, 0, path.total);
+    const u = (d / Math.max(1e-6, path.total)) * (autoplayLut.length - 1);
+    const i = Math.min(autoplayLut.length - 2, Math.max(0, u | 0));
+    const f = u - i;
+    const a = autoplayLut[i];
+    const b = autoplayLut[i + 1];
+    pos.lerpVectors(a.pos, b.pos, f);
+    tan.lerpVectors(a.tan, b.tan, f);
+    if (tan.lengthSq() < 1e-8) tan.copy(a.tan);
+    tan.normalize();
+    side.lerpVectors(a.side, b.side, f);
+    if (side.lengthSq() < 1e-8) side.set(1, 0, 0);
+    side.normalize();
+    up.crossVectors(side, tan).normalize();
+    if (overshoot > 0) pos.addScaledVector(tan, overshoot);
+  }
+
   function exploreToReal(exploreDist) {
     // Lead-in sits before path start; then map compressed explore → real meters
     return Math.max(0, exploreDist - START_LEAD_M) / PATH_COMPRESS;
@@ -359,7 +523,7 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
   const placements = media.map((item) => {
     const realDist = path.distanceAtTime(item.time);
     const naturalDist = realDist * PATH_COMPRESS + START_LEAD_M;
-    writeFrame(realDist, _pPos, _pTan, _pSide, _pUp, false);
+    writeFrame(realDist, _pPos, _pTan, _pSide, _pUp, "raw");
     const h1 = hash01(item.id + ":side");
     const h2 = hash01(item.id + ":mag");
     const lateral = (h1 < 0.5 ? -1 : 1) * (1.4 + h2 * 4.2); // 1.4–5.6 m off path
@@ -368,7 +532,7 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
       .clone()
       .addScaledVector(_pSide, lateral)
       .add(new THREE.Vector3(0, EYE_H * 0.85, 0));
-    return { item, dist: naturalDist, naturalDist, world, lateral, yawJitter };
+    return { item, dist: naturalDist, naturalDist, realDist, world, lateral, yawJitter };
   });
 
   // Enforce min explore gap so clustered shots each get a full animation window
@@ -379,6 +543,13 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
       p.dist = padded;
       cursor = padded;
     }
+  }
+
+  // Precompute photo frames (fixed along path) — avoids CatmullRom every layout tick
+  for (const p of placements) {
+    const realForSlot = exploreToReal(p.dist);
+    p.exploreFrame = captureFrame(realForSlot, "explore");
+    p.autoplayFrame = captureFrame(realForSlot, "autoplay");
   }
 
   const exploreTotal = Math.max(
@@ -395,12 +566,29 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
     alpha: true,
     // logarithmicDepthBuffer breaks Points / gl_PointSize — keep off for the cloud
   });
+  let nightMode = false;
+  const fadeEl = document.createElement("div");
+  fadeEl.setAttribute("aria-hidden", "true");
+  fadeEl.style.cssText =
+    "position:absolute;inset:0;pointer-events:none;opacity:0;z-index:2;background:#fff;";
+  if (getComputedStyle(container).position === "static") {
+    container.style.position = "relative";
+  }
+  function applyBackground() {
+    const hex = nightMode ? "#000000" : "#ffffff";
+    const clear = nightMode ? 0x000000 : 0xffffff;
+    renderer.setClearColor(clear, 0);
+    renderer.domElement.style.background = hex;
+    container.style.background = hex;
+    fadeEl.style.background = hex;
+  }
   renderer.setClearColor(0xffffff, 0);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.sortObjects = true;
   container.appendChild(renderer.domElement);
-  renderer.domElement.style.background = "#fff";
+  container.appendChild(fadeEl);
+  applyBackground();
 
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
@@ -409,11 +597,7 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
   controls.screenSpacePanning = true;
   controls.autoRotate = true;
   controls.autoRotateSpeed = 0.35;
-
-  const stopAuto = () => {
-    controls.autoRotate = false;
-  };
-  controls.addEventListener("start", stopAuto);
+  // Keep orbiting after drag / click — only explore mode disables autoRotate
 
   // Explore rig: fixed camera looking -Z; images move toward the viewer
   const exploreRoot = new THREE.Group();
@@ -442,12 +626,13 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
     THREE.RGBAFormat
   );
   placeholderTex.needsUpdate = true;
-  let pointMul = 2.5;
   // Pool of clouds — several photos can dissolve together
+  const EXPLORE_WIGGLE_M = 0.055; // subtle point drift while mist is alive
   const cloudPool = Array.from({ length: MAX_ACTIVE_CLOUDS }, (_, i) => {
     const mat = makeCloudMaterial(placeholderTex, 1);
     mat.uniforms.uScale.value = (container.clientHeight || 800) * 0.5;
-    mat.uniforms.uPointMul.value = pointMul;
+    mat.uniforms.uPointMul.value = POINT_MUL;
+    mat.uniforms.uWiggle.value = EXPLORE_WIGGLE_M;
     const pts = new THREE.Points(cloudGeoFor(CLOUD_LONG_SIDE, CLOUD_LONG_SIDE), mat);
     pts.visible = false;
     pts.frustumCulled = false;
@@ -455,16 +640,6 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
     exploreRoot.add(pts);
     return { pts, mat };
   });
-
-  function setPointMul(mul) {
-    pointMul = THREE.MathUtils.clamp(Number(mul) || 1, 0.25, 3);
-    for (const slot of cloudPool) {
-      slot.mat.uniforms.uPointMul.value = pointMul;
-      slot.mat.uniformsNeedUpdate = true;
-    }
-    if (mode === "explore") updateExploreLayout();
-    return pointMul;
-  }
 
   function applyCloudSlot(slot, node, { disp, spread, scale, planeW, planeH, ahead }) {
     const { pts, mat } = slot;
@@ -500,12 +675,54 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
     mat.uniformsNeedUpdate = true;
   }
 
-  const overviewBillboards = [];
+  const overviewBillboards = []; // invisible pick planes
+  const overviewNodes = []; // { group, pick }
   const exploreNodes = [];
   const planeGeoCache = new Map(); // aspect key → geometry
+  const _ovLook = new THREE.Vector3();
+  const _ovQuat = new THREE.Quaternion();
 
   let walkDist = 0;
   let layoutRaf = 0;
+  let camTransition = null; // overview → explore fly-in state
+  let exploreAutoplay = false;
+  let autoplayLastMs = 0;
+  // Soft follow of a linear target — avoids wall-clock catch-up jumps on heavy frames
+  let autoplayTargetWalk = 0;
+  let autoplayOriginMs = 0;
+  let autoplayOriginWalk = 0;
+
+  function reanchorAutoplay() {
+    autoplayOriginMs = performance.now();
+    autoplayOriginWalk = walkDist;
+    autoplayTargetWalk = walkDist;
+    autoplayLastMs = autoplayOriginMs;
+  }
+
+  function setExploreAutoplay(on) {
+    const next = !!on && mode === "explore" && !camTransition;
+    if (next === exploreAutoplay) return exploreAutoplay;
+    if (next && walkDist >= exploreTotal - 1e-3) walkDist = 0;
+    exploreAutoplay = next;
+    if (next) reanchorAutoplay();
+    onExploreAutoplayChange?.(exploreAutoplay);
+    return exploreAutoplay;
+  }
+
+  let autoplaySpeedMul = 15; // default 15×; keys 1–9 → 5×…45× (key×5)
+  function setExploreAutoplaySpeed(mul) {
+    const n = Math.round(Number(mul) || 15);
+    // Accept either the key (1–9) or the resolved multiplier (5–45)
+    if (n >= 1 && n <= 9) autoplaySpeedMul = n * 5;
+    else autoplaySpeedMul = THREE.MathUtils.clamp(n, 5, 45);
+    if (exploreAutoplay) reanchorAutoplay();
+    return autoplaySpeedMul;
+  }
+  // Constant cruise speed (explore-m/s)
+  const AUTOPLAY_BASE_MPS = path.avgSpeed * PATH_COMPRESS;
+  function exploreAutoplaySpeed() {
+    return AUTOPLAY_BASE_MPS * autoplaySpeedMul;
+  }
 
   function planeGeoFor(aspect) {
     const key = aspect.toFixed(3);
@@ -618,24 +835,59 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
         dissolveTex?.image?.height ||
         (clamped >= 1 ? Math.max(1, Math.round(CLOUD_LONG_SIDE / clamped)) : CLOUD_LONG_SIDE);
 
-      const overviewMat = new THREE.MeshBasicMaterial({
-        map: tex,
-        color: tex ? 0xffffff : 0x888888,
+      // Overview: point-cloud only — oriented from AccelerationVector
+      const ovGroup = new THREE.Group();
+      const cloudScale = OVERVIEW_CLOUD_SCALE;
+      const planeW = PHOTO_H * clamped * cloudScale;
+      const planeH = PHOTO_H * cloudScale;
+      const disp = DISP_MAX * cloudScale * OVERVIEW_DISP_MUL;
+
+      if (dissolveTex) {
+        const ovLong = OVERVIEW_CLOUD_LONG;
+        const ovW =
+          clamped >= 1 ? ovLong : Math.max(1, Math.round(ovLong * clamped));
+        const ovH =
+          clamped >= 1 ? Math.max(1, Math.round(ovLong / clamped)) : ovLong;
+        const cloudMat = makeCloudMaterial(dissolveTex, clamped);
+        cloudMat.uniforms.uScale.value = (container.clientHeight || 800) * 0.5;
+        cloudMat.uniforms.uPointMul.value = POINT_MUL;
+        cloudMat.uniforms.uPlane.value.set(planeW, planeH);
+        cloudMat.uniforms.uDisp.value = disp;
+        cloudMat.uniforms.uSpread.value = CLOUD_FAR_SPREAD;
+        cloudMat.uniforms.uSize.value = (planeH / Math.max(1, ovH)) * 2.35;
+        // No distance fog in overview
+        cloudMat.uniforms.uFogNear.value = 1e5;
+        cloudMat.uniforms.uFogFar.value = 1e5 + 1;
+        const cloudPts = new THREE.Points(cloudGeoFor(ovW, ovH), cloudMat);
+        cloudPts.frustumCulled = false;
+        cloudPts.renderOrder = 5;
+        ovGroup.add(cloudPts);
+      }
+
+      // Invisible pick plane (same footprint as the cloud core)
+      const pickMat = new THREE.MeshBasicMaterial({
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
         side: THREE.DoubleSide,
-        transparent: false,
-        opacity: 1,
-        depthWrite: true,
-        toneMapped: false,
         fog: false,
       });
+      const pick = new THREE.Mesh(planeGeoFor(clamped), pickMat);
+      pick.scale.setScalar(cloudScale);
+      pick.userData.item = item;
+      pick.userData.baseScale = cloudScale;
+      ovGroup.add(pick);
 
-      const ov = new THREE.Mesh(planeGeoFor(clamped), overviewMat);
-      ov.scale.setScalar(8);
-      ov.position.copy(placement.world);
-      ov.position.y += 2;
-      ov.userData.item = item;
-      scene.add(ov);
-      overviewBillboards.push(ov);
+      ovGroup.position.copy(placement.overviewWorld);
+      _ovLook.copy(placement.overviewWorld).sub(overviewCenter);
+      if (_ovLook.lengthSq() < 1e-6) _ovLook.set(0, 0, 1);
+      else _ovLook.normalize();
+      quatFromAccel(item.accel || DEFAULT_ACCEL, _ovLook, _ovQuat);
+      ovGroup.quaternion.copy(_ovQuat);
+
+      scene.add(ovGroup);
+      overviewBillboards.push(pick);
+      overviewNodes.push({ group: ovGroup, pick });
 
       const group = new THREE.Group();
       const hiMat = new THREE.MeshBasicMaterial({
@@ -667,17 +919,357 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
       });
     });
     await Promise.all(jobs);
+    // Texture loads finish out of order — restore path order for O(n) visible scans
+    exploreNodes.sort((a, b) => a.placement.dist - b.placement.dist);
   }
 
-  const box = new THREE.Box3().setFromPoints(placements.map((p) => p.world));
+  // Inflate path spacing for the volumetric mass, then frame the camera on it
+  const overviewRawCenter = new THREE.Vector3();
+  {
+    const rawBox = new THREE.Box3().setFromPoints(placements.map((p) => p.world));
+    rawBox.getCenter(overviewRawCenter);
+    for (const p of placements) {
+      p.overviewWorld = p.world
+        .clone()
+        .sub(overviewRawCenter)
+        .multiplyScalar(OVERVIEW_SPREAD)
+        .add(overviewRawCenter);
+      p.overviewWorld.y += 2;
+    }
+  }
+  const box = new THREE.Box3().setFromPoints(placements.map((p) => p.overviewWorld));
   const overviewCenter = box.getCenter(new THREE.Vector3());
-  const overviewSize = box.getSize(new THREE.Vector3());
-  const overviewRadius = Math.max(overviewSize.x, overviewSize.y, overviewSize.z, 80) * 0.75;
-  const overviewCamPos = new THREE.Vector3(
-    overviewCenter.x + overviewRadius * 0.85,
-    overviewCenter.y + overviewRadius * 0.45,
-    overviewCenter.z + overviewRadius * 0.95
+  // Inflate by each cloud's volume so framing includes the mist, not just anchors
+  const overviewCloudRadius = Math.hypot(
+    PHOTO_H * 1.7 * OVERVIEW_CLOUD_SCALE * CLOUD_FAR_SPREAD * 0.5,
+    PHOTO_H * OVERVIEW_CLOUD_SCALE * CLOUD_FAR_SPREAD * 0.5,
+    DISP_MAX * OVERVIEW_CLOUD_SCALE * OVERVIEW_DISP_MUL * 0.65
   );
+  const overviewFitBox = box.clone().expandByScalar(overviewCloudRadius);
+  const overviewSphere = overviewFitBox.getBoundingSphere(new THREE.Sphere());
+  overviewCenter.copy(overviewSphere.center);
+  const overviewCamDir = new THREE.Vector3(0.82, 0.4, 0.92).normalize();
+  const OVERVIEW_FIT_PAD = 0.6;
+  const OVERVIEW_FOV = 48;
+  const OVERVIEW_VIEW_Y = 0.1;
+  const _ovViewUp = new THREE.Vector3();
+
+  // Trail-base eye in overview space — cinematic handoff into explore
+  const overviewBaseEye = new THREE.Vector3();
+  const overviewBaseLook = new THREE.Vector3();
+  const overviewBaseQuat = new THREE.Quaternion();
+  {
+    writeFrame(0, _eyePos, _eyeTan, _eyeSide, _eyeUp, "raw");
+    overviewBaseEye
+      .copy(_eyePos)
+      .addScaledVector(_worldUp, EYE_H)
+      .sub(overviewRawCenter)
+      .multiplyScalar(OVERVIEW_SPREAD)
+      .add(overviewRawCenter);
+    // Stand a little behind the trailhead, looking into the mass
+    overviewBaseEye.addScaledVector(_eyeTan, -14 * OVERVIEW_SPREAD);
+    overviewBaseLook
+      .copy(overviewBaseEye)
+      .addScaledVector(_eyeTan, 55 * OVERVIEW_SPREAD)
+      .addScaledVector(_worldUp, 2);
+    const basCam = new THREE.PerspectiveCamera();
+    basCam.position.copy(overviewBaseEye);
+    basCam.up.copy(_worldUp);
+    basCam.lookAt(overviewBaseLook);
+    overviewBaseQuat.copy(basCam.quaternion);
+  }
+
+  // Checkpoint anchors at each sputaneve photo — the mesh is an invisible pick
+  // target, the visible marker is an HTML pin projected on top of the canvas
+  const checkpointMarkers = [];
+  const checkpointPins = [];
+  {
+    const markGeo = new THREE.CircleGeometry(6.5, 28);
+    const markMat = new THREE.MeshBasicMaterial({ visible: false });
+    SPUTANEVE_IDS.forEach((id, i) => {
+      const p = placements.find((x) => x.item.id === id);
+      if (!p) return;
+      const mesh = new THREE.Mesh(markGeo, markMat);
+      mesh.position.copy(p.overviewWorld);
+      mesh.userData.item = p.item;
+      mesh.userData.checkpoint = true;
+      scene.add(mesh);
+      checkpointMarkers.push(mesh);
+
+      const pin = document.createElement("button");
+      pin.type = "button";
+      pin.className = "checkpoint-pin";
+      pin.hidden = true;
+      if (checkpointIconSrc) {
+        const icon = document.createElement("img");
+        icon.src = checkpointIconSrc;
+        icon.alt = "";
+        pin.appendChild(icon);
+      }
+      const label = document.createElement("span");
+      label.textContent = `checkpoint-${i + 1}`;
+      pin.appendChild(label);
+      pin.addEventListener("click", () => goToCheckpoint(p.item.id));
+      pin.addEventListener("pointerenter", () => onHoverItem?.(p.item));
+      pin.addEventListener("pointerleave", () => onHoverItem?.(null));
+      container.appendChild(pin);
+      checkpointPins.push({ pin, mesh });
+    });
+  }
+
+  const _pinNdc = new THREE.Vector3();
+  function updateCheckpointPins() {
+    const w = renderer.domElement.clientWidth;
+    const h = renderer.domElement.clientHeight;
+    for (const { pin, mesh } of checkpointPins) {
+      _pinNdc.copy(mesh.position).project(camera);
+      const show = mesh.visible && mode === "overview" && _pinNdc.z < 1;
+      pin.hidden = !show;
+      if (!show) continue;
+      const x = (_pinNdc.x * 0.5 + 0.5) * w;
+      const y = (-_pinNdc.y * 0.5 + 0.5) * h;
+      pin.style.transform = `translate(${x}px, ${y}px) translate(-5.8px, -50%)`;
+    }
+  }
+
+  function getCheckpoints() {
+    return SPUTANEVE_IDS.map((id, i) => {
+      const p = placements.find((x) => x.item.id === id);
+      if (!p) return null;
+      return {
+        index: i + 1,
+        id: p.item.id,
+        label: `Sputaneve ${i + 1}`,
+        timeLocal: p.item.timeLocal,
+        ele: p.item.ele,
+        dist: p.dist,
+        item: p.item,
+      };
+    }).filter(Boolean);
+  }
+
+  function goToCheckpoint(id) {
+    const p = placements.find((x) => x.item.id === id);
+    if (!p) return false;
+    if (mode !== "explore" || camTransition) setMode("explore", { animate: false });
+    else setExploreAutoplay(false);
+    // Stop a bit before the shot so the card is ahead in view
+    walkDist = THREE.MathUtils.clamp(p.dist - 28, 0, exploreTotal);
+    updateExploreLayout();
+    return true;
+  }
+
+  // Overview → explore: curved fly-in + soft dip-to-bg handoff
+  const ENTER_EXPLORE_MS = 3800;
+  const _trPos = new THREE.Vector3();
+  const _trMid = new THREE.Vector3();
+  const _trQuat = new THREE.Quaternion();
+  const _camPos = new THREE.Vector3();
+
+  function easeInOutQuint(u) {
+    const t = THREE.MathUtils.clamp(u, 0, 1);
+    return t < 0.5 ? 16 * t * t * t * t * t : 1 - Math.pow(-2 * t + 2, 5) / 2;
+  }
+
+  function easeInOutCubic(u) {
+    const t = THREE.MathUtils.clamp(u, 0, 1);
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+
+  function bezier3(a, b, c, t, out) {
+    const u = 1 - t;
+    out.set(0, 0, 0)
+      .addScaledVector(a, u * u)
+      .addScaledVector(b, 2 * u * t)
+      .addScaledVector(c, t * t);
+    return out;
+  }
+
+  function setViewFade(opacity) {
+    fadeEl.style.opacity = String(THREE.MathUtils.clamp(opacity, 0, 1));
+  }
+
+  function setOverviewMistWash(t) {
+    // Softly wash volumetric into the bg color as we dive in
+    const k = THREE.MathUtils.clamp(t, 0, 1);
+    const fogCol = nightMode ? 0x000000 : 0xffffff;
+    for (const n of overviewNodes) {
+      n.group.traverse((obj) => {
+        const u = obj.isPoints && obj.material?.uniforms;
+        if (!u?.uFogNear || !u?.uFogFar) return;
+        // k=0: no fog (overview default). k=1: fully washed.
+        u.uFogNear.value = THREE.MathUtils.lerp(1e5, 2, k);
+        u.uFogFar.value = THREE.MathUtils.lerp(1e5 + 1, 55, k);
+        u.uFogColor.value.setHex(fogCol);
+      });
+    }
+  }
+
+  function resetOverviewMistWash() {
+    for (const n of overviewNodes) {
+      n.group.traverse((obj) => {
+        const u = obj.isPoints && obj.material?.uniforms;
+        if (!u?.uFogNear || !u?.uFogFar) return;
+        u.uFogNear.value = 1e5;
+        u.uFogFar.value = 1e5 + 1;
+      });
+    }
+  }
+
+  function cancelCamTransition() {
+    camTransition = null;
+    setViewFade(0);
+    resetOverviewMistWash();
+  }
+
+  function handoffToExplore(endWalk = 0) {
+    walkDist = THREE.MathUtils.clamp(endWalk, 0, exploreTotal);
+    for (const slot of cloudPool) slot.pts.visible = false;
+    resetOverviewMistWash();
+    applyExploreCamera();
+  }
+
+  function beginEnterExplore(endWalk = 0) {
+    setExploreAutoplay(false);
+    for (const n of exploreNodes) stopNodeVideo(n);
+    controls.enabled = false;
+    controls.autoRotate = false;
+    exploreRoot.visible = false;
+    for (const n of overviewNodes) n.group.visible = true;
+    for (const m of checkpointMarkers) m.visible = true;
+    for (const n of exploreNodes) n.group.visible = false;
+    setViewFade(0);
+    resetOverviewMistWash();
+
+    const fromPos = camera.position.clone();
+    const fromQuat = camera.quaternion.clone();
+    const fromFov = camera.fov;
+    // Settle slightly above trailhead, looking into the mass
+    const toPos = overviewBaseEye.clone().addScaledVector(_worldUp, 4.5);
+    const toQuat = overviewBaseQuat.clone();
+    // Arc through a lifted midpoint so the dive feels continuous, not linear
+    _trMid
+      .lerpVectors(fromPos, toPos, 0.42)
+      .addScaledVector(_worldUp, overviewSphere.radius * 0.12)
+      .addScaledVector(
+        overviewCenter.clone().sub(fromPos).normalize(),
+        overviewSphere.radius * 0.08
+      );
+
+    camTransition = {
+      t0: performance.now(),
+      dur: ENTER_EXPLORE_MS,
+      fromPos,
+      midPos: _trMid.clone(),
+      toPos,
+      fromQuat,
+      toQuat,
+      fromFov,
+      toFov: EXPLORE_FOV_DEG,
+      endWalk: THREE.MathUtils.clamp(endWalk, 0, exploreTotal),
+      handedOff: false,
+      farStart: Math.max(8000, overviewSphere.radius * 20),
+    };
+    scene.fog = null;
+    camera.near = 0.5;
+    camera.far = camTransition.farStart;
+    camera.updateProjectionMatrix();
+  }
+
+  function tickCamTransition(now) {
+    if (!camTransition) return false;
+    const u = THREE.MathUtils.clamp((now - camTransition.t0) / camTransition.dur, 0, 1);
+    // Flight occupies the first ~58%; look eases a touch later than position
+    const flyU = THREE.MathUtils.clamp(u / 0.58, 0, 1);
+    const posE = easeInOutQuint(flyU);
+    const lookE = easeInOutQuint(THREE.MathUtils.clamp((flyU - 0.06) / 0.94, 0, 1));
+    const fovE = easeInOutCubic(flyU);
+
+    if (!camTransition.handedOff) {
+      bezier3(
+        camTransition.fromPos,
+        camTransition.midPos,
+        camTransition.toPos,
+        posE,
+        _trPos
+      );
+      _trQuat.slerpQuaternions(camTransition.fromQuat, camTransition.toQuat, lookE);
+      camera.position.copy(_trPos);
+      camera.quaternion.copy(_trQuat);
+      camera.up.set(0, 1, 0);
+      camera.fov = THREE.MathUtils.lerp(camTransition.fromFov, camTransition.toFov, fovE);
+      // Keep deep far-plane until the veiled handoff — avoids mass clipping mid-dive
+      camera.near = 0.5;
+      camera.far = camTransition.farStart;
+      camera.updateProjectionMatrix();
+      camera.getWorldPosition(_camPos);
+      for (const n of overviewNodes) {
+        n.pick.renderOrder = 20 - n.group.position.distanceToSquared(_camPos) * 1e-6;
+      }
+      for (const m of checkpointMarkers) m.quaternion.copy(camera.quaternion);
+
+      // Wash volumetric into the background as we approach the trailhead
+      const wash = easeInOutCubic(THREE.MathUtils.clamp((flyU - 0.35) / 0.65, 0, 1));
+      setOverviewMistWash(wash * 0.85);
+    }
+
+    // Soft dip-to-bg bridges the incompatible overview/explore spaces
+    let veil = 0;
+    if (u < 0.48) veil = 0;
+    else if (u < 0.62) veil = easeInOutCubic((u - 0.48) / 0.14);
+    else if (u < 0.72) veil = 1;
+    else veil = 1 - easeInOutCubic((u - 0.72) / 0.28);
+    setViewFade(veil);
+
+    if (!camTransition.handedOff && u >= 0.62) {
+      camTransition.handedOff = true;
+      handoffToExplore(camTransition.endWalk);
+    }
+
+    // Keep explore mist alive under the veil so the unveil feels continuous
+    if (camTransition.handedOff) {
+      const t = now * 0.001;
+      for (const slot of cloudPool) {
+        if (!slot.pts.visible) continue;
+        slot.mat.uniforms.uTime.value = t;
+      }
+    }
+
+    if (u >= 1) {
+      if (!camTransition.handedOff) handoffToExplore(camTransition.endWalk);
+      setViewFade(0);
+      camTransition = null;
+      return true;
+    }
+    return true;
+  }
+
+  function frameOverviewToFit() {
+    camera.fov = OVERVIEW_FOV;
+    camera.near = 0.5;
+    camera.far = Math.max(8000, overviewSphere.radius * 20);
+    camera.updateProjectionMatrix();
+    const vFov = THREE.MathUtils.degToRad(camera.fov);
+    const hFov = 2 * Math.atan(Math.tan(vFov * 0.5) * Math.max(0.2, camera.aspect));
+    const dist =
+      (overviewSphere.radius * OVERVIEW_FIT_PAD) /
+      Math.min(Math.sin(vFov * 0.5), Math.sin(hFov * 0.5));
+    const visibleH = 2 * dist * Math.tan(vFov * 0.5);
+    const screenShift = OVERVIEW_VIEW_Y * visibleH;
+
+    camera.position.copy(overviewSphere.center).addScaledVector(overviewCamDir, dist);
+    camera.up.set(0, 1, 0);
+    camera.lookAt(overviewSphere.center);
+    camera.updateMatrixWorld();
+    _ovViewUp.setFromMatrixColumn(camera.matrixWorld, 1).normalize();
+
+    // Orbit target below the mass → mass reads above the viewport center
+    controls.target.copy(overviewSphere.center).addScaledVector(_ovViewUp, -screenShift);
+    camera.position.copy(controls.target).addScaledVector(overviewCamDir, dist);
+    controls.minDistance = Math.max(8, dist * 0.25);
+    controls.maxDistance = dist * 5;
+    controls.update();
+  }
 
   function applyOverviewCamera() {
     controls.enabled = true;
@@ -685,18 +1277,13 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
     controls.enableZoom = true;
     controls.enableRotate = true;
     controls.autoRotate = true;
-    controls.minDistance = 8;
-    controls.maxDistance = 4000;
-    camera.fov = 48;
-    camera.near = 0.5;
-    camera.far = 8000;
-    camera.updateProjectionMatrix();
-    camera.position.copy(overviewCamPos);
-    controls.target.copy(overviewCenter);
-    controls.update();
+    setViewFade(0);
+    resetOverviewMistWash();
+    frameOverviewToFit();
     scene.fog = null;
     exploreRoot.visible = false;
-    for (const b of overviewBillboards) b.visible = true;
+    for (const n of overviewNodes) n.group.visible = true;
+    for (const m of checkpointMarkers) m.visible = true;
     for (const n of exploreNodes) n.group.visible = false;
   }
 
@@ -712,7 +1299,8 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
     camera.position.set(0, EYE_H, 0);
     camera.up.set(0, 1, 0);
     camera.lookAt(0, EYE_H, -10);
-    for (const b of overviewBillboards) b.visible = false;
+    for (const n of overviewNodes) n.group.visible = false;
+    for (const m of checkpointMarkers) m.visible = false;
     // Layout first so cards don't pop/reshuffle on the first visible frame
     exploreRoot.visible = false;
     updateExploreLayout();
@@ -760,25 +1348,22 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
   }
 
   function updateExploreLayout() {
-    // Bidirectional: ahead>0 visible; scroll back restores images.
-    const ranked = [];
-    for (const node of exploreNodes) {
-      ranked.push({ node, ahead: node.placement.dist - walkDist });
-    }
-    ranked.sort((a, b) => a.ahead - b.ahead);
-
+    // exploreNodes follow padded dist order — scan forward, no full sort
     const visibleSet = new Set();
     let aheadCount = 0;
-    for (const row of ranked) {
-      if (row.ahead <= 0 || row.ahead >= SHOW_AHEAD_M) continue;
-      if (aheadCount >= MAX_VISIBLE_CARDS) continue;
+    for (const node of exploreNodes) {
+      const ahead = node.placement.dist - walkDist;
+      if (ahead <= 0) continue;
+      if (ahead >= SHOW_AHEAD_M) break;
+      if (aheadCount >= MAX_VISIBLE_CARDS) break;
       aheadCount++;
-      visibleSet.add(row.node);
+      visibleSet.add(node);
     }
 
-    // Camera on smoothed explore curve. During lead-in, pull back along the
-    // start tangent so cards stay fixed in world space (no Z reshuffle).
-    writeFrame(exploreToReal(walkDist), _eyePos, _eyeTan, _eyeSide, _eyeUp, true);
+    // Camera: autoplay uses LUT on the ultra-smooth ribbon; scroll uses explore curve
+    const realEye = exploreToReal(walkDist);
+    if (exploreAutoplay) sampleAutoplayLut(realEye, _eyePos, _eyeTan, _eyeSide, _eyeUp);
+    else writeFrame(realEye, _eyePos, _eyeTan, _eyeSide, _eyeUp, "explore");
     const leadPad = Math.max(0, START_LEAD_M - walkDist);
     _camWorld
       .copy(_eyePos)
@@ -786,12 +1371,13 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
       .addScaledVector(_eyeTan, -leadPad / Math.max(1e-6, PATH_COMPRESS));
 
     const cloudJobs = [];
+    const maxClouds = exploreAutoplay ? AUTOPLAY_MAX_CLOUDS : MAX_ACTIVE_CLOUDS;
 
     for (const node of exploreNodes) {
       const ahead = node.placement.dist - walkDist;
       const show = mode === "explore" && visibleSet.has(node);
 
-      if (!show || ahead <= 0) {
+      if (!show || ahead <= 0 || ahead >= SHOW_AHEAD_M) {
         node.group.visible = false;
         node.hiPlane.visible = false;
         node.hiPlane.scale.setScalar(1);
@@ -800,8 +1386,9 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
         continue;
       }
 
-      // Frame at padded explore slot (not raw path dist) so timeline gaps work
-      writeFrame(exploreToReal(node.placement.dist), _pPos, _pTan, _pSide, _pUp, true);
+      // Precomputed frame at padded explore slot
+      const frame = exploreAutoplay ? node.placement.autoplayFrame : node.placement.exploreFrame;
+      applyCapturedFrame(frame, _pPos, _pTan, _pSide, _pUp);
 
       const { w: planeW, h: planeH } = planeSizeForAspect(node.aspect);
       // Geometry is PHOTO_H×aspect — scale mesh to the viewport-equalized footprint
@@ -940,10 +1527,10 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
 
     // Prefer near collapsing clouds + far mist
     cloudJobs.sort((a, b) => a.ahead - b.ahead);
-    const nearSlots = Math.min(5, MAX_ACTIVE_CLOUDS);
+    const nearSlots = Math.min(5, maxClouds);
     const near = cloudJobs.slice(0, nearSlots);
     const far = cloudJobs.slice(nearSlots).sort((a, b) => b.ahead - a.ahead);
-    const picked = near.concat(far).slice(0, MAX_ACTIVE_CLOUDS);
+    const picked = near.concat(far).slice(0, maxClouds);
 
     for (let i = 0; i < cloudPool.length; i++) {
       const job = picked[i];
@@ -956,10 +1543,20 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
     }
   }
 
-  function setMode(next) {
-    mode = next === "explore" ? "explore" : "overview";
+  function setMode(next, { animate = true } = {}) {
+    const target = next === "explore" ? "explore" : "overview";
+    setHover(null);
+    if (target === "explore" && mode === "overview" && animate && !camTransition) {
+      mode = "explore";
+      container.dataset.mode = mode;
+      beginEnterExplore(0);
+      onModeChange?.(mode);
+      return mode;
+    }
+    cancelCamTransition();
+    mode = target;
     container.dataset.mode = mode;
-    stopAuto();
+    setExploreAutoplay(false);
     for (const n of exploreNodes) stopNodeVideo(n);
     if (mode === "explore") {
       // Farthest POV — start of lead-in, everything ahead
@@ -969,13 +1566,15 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
     } else {
       applyOverviewCamera();
     }
+    onModeChange?.(mode);
     return mode;
   }
 
   // Scroll moves images; layout updates once per animation frame
   function onWheel(e) {
-    if (mode !== "explore") return;
+    if (mode !== "explore" || camTransition) return;
     e.preventDefault();
+    if (exploreAutoplay) setExploreAutoplay(false);
     const step = Math.sign(e.deltaY) * Math.min(4.5, Math.abs(e.deltaY) * 0.02);
     walkDist = THREE.MathUtils.clamp(walkDist + step, 0, exploreTotal);
     if (!layoutRaf) {
@@ -987,7 +1586,8 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
   }
   renderer.domElement.addEventListener("wheel", onWheel, { passive: false });
 
-  // Picking
+  // Picking + hover coordinate readout (overview) — the readout itself lives
+  // in the page UI, we only report which item is under the pointer
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   let hover = null;
@@ -996,14 +1596,16 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
 
   function setHover(next) {
     if (hover === next) return;
-    if (hover) hover.scale.setScalar(1);
+    if (hover && !hover.userData.checkpoint) {
+      hover.scale.setScalar(hover.userData.baseScale ?? 1);
+    }
     hover = next;
-    if (hover && mode === "overview") hover.scale.setScalar(1.05);
     container.style.cursor = hover ? "pointer" : mode === "explore" ? "default" : "grab";
+    onHoverItem?.(hover?.userData?.item ?? null);
   }
 
   function onPointerMove(e) {
-    if (mode === "explore") {
+    if (mode === "explore" || camTransition) {
       setHover(null);
       return;
     }
@@ -1011,11 +1613,16 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
     pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(pointer, camera);
-    const hits = raycaster.intersectObjects(
-      overviewBillboards.filter((b) => b.visible),
-      false
-    );
+    const pickables = [
+      ...checkpointMarkers.filter((b) => b.visible),
+      ...overviewBillboards.filter((b) => b.visible),
+    ];
+    const hits = raycaster.intersectObjects(pickables, false);
     setHover(hits[0]?.object || null);
+  }
+
+  function onPointerLeave() {
+    setHover(null);
   }
 
   function onPointerDown(e) {
@@ -1025,6 +1632,7 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
 
   function onClick(e) {
     if (Math.hypot(e.clientX - downX, e.clientY - downY) > 5) return;
+    if (camTransition) return;
     if (mode === "explore") {
       // pick nearest visible explore plane
       const rect = renderer.domElement.getBoundingClientRect();
@@ -1036,13 +1644,17 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
       if (hits[0]?.object?.userData?.item) onSelect?.(hits[0].object.userData.item);
       return;
     }
+    if (hover?.userData?.checkpoint) {
+      goToCheckpoint(hover.userData.item.id);
+      return;
+    }
     if (!hover?.userData?.item) return;
-    stopAuto();
     onSelect?.(hover.userData.item);
   }
 
   renderer.domElement.addEventListener("pointermove", onPointerMove);
   renderer.domElement.addEventListener("pointerdown", onPointerDown);
+  renderer.domElement.addEventListener("pointerleave", onPointerLeave);
   renderer.domElement.addEventListener("click", onClick);
 
   function resize() {
@@ -1051,25 +1663,70 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     renderer.setSize(w, h, false);
-    for (const slot of cloudPool) slot.mat.uniforms.uScale.value = h * 0.5;
-    if (mode === "explore") updateExploreLayout();
+    const halfH = h * 0.5;
+    for (const slot of cloudPool) slot.mat.uniforms.uScale.value = halfH;
+    for (const n of overviewNodes) {
+      n.group.traverse((obj) => {
+        if (obj.isPoints && obj.material?.uniforms?.uScale) {
+          obj.material.uniforms.uScale.value = halfH;
+        }
+      });
+    }
+    if (camTransition) {
+      /* keep frustum; pose driven by transition */
+    } else if (mode === "overview") frameOverviewToFit();
+    else if (mode === "explore") updateExploreLayout();
   }
   const ro = new ResizeObserver(resize);
   ro.observe(container);
   resize();
 
-  const _camPos = new THREE.Vector3();
+  const cloudClock = new THREE.Clock();
   let raf = 0;
   function tick() {
     raf = requestAnimationFrame(tick);
-    if (mode === "overview") {
+    if (camTransition) {
+      tickCamTransition(performance.now());
+    } else if (mode === "overview") {
       controls.update();
       camera.getWorldPosition(_camPos);
-      for (const obj of overviewBillboards) {
-        obj.quaternion.copy(camera.quaternion);
-        obj.renderOrder = -obj.position.distanceToSquared(_camPos);
+      for (const n of overviewNodes) {
+        n.pick.renderOrder = 20 - n.group.position.distanceToSquared(_camPos) * 1e-6;
+      }
+      for (const m of checkpointMarkers) {
+        m.quaternion.copy(camera.quaternion);
+      }
+    } else if (mode === "explore") {
+      const t = cloudClock.getElapsedTime();
+      for (const slot of cloudPool) {
+        if (!slot.pts.visible) continue;
+        slot.mat.uniforms.uTime.value = t;
+      }
+      if (exploreAutoplay) {
+        const now = performance.now();
+        const dt = Math.min(1 / 30, Math.max(0, (now - autoplayLastMs) / 1000));
+        autoplayLastMs = now;
+        const speed = exploreAutoplaySpeed();
+        autoplayTargetWalk = Math.min(
+          exploreTotal,
+          autoplayOriginWalk + speed * Math.max(0, (now - autoplayOriginMs) / 1000)
+        );
+        // Exp damp toward linear target (tau ≈ 0.12s) + hard cap ≈ cruise speed
+        const alpha = 1 - Math.exp(-dt / 0.12);
+        const desired = walkDist + (autoplayTargetWalk - walkDist) * alpha;
+        const maxStep = speed * dt * 1.08;
+        const step = THREE.MathUtils.clamp(desired - walkDist, 0, maxStep);
+        walkDist = Math.min(exploreTotal, walkDist + step);
+        if (autoplayTargetWalk - walkDist > speed * 1.25) {
+          autoplayOriginWalk = walkDist;
+          autoplayOriginMs = now;
+          autoplayTargetWalk = walkDist;
+        }
+        updateExploreLayout();
+        if (walkDist >= exploreTotal - 1e-3) setExploreAutoplay(false);
       }
     }
+    updateCheckpointPins();
     renderer.render(scene, camera);
   }
 
@@ -1124,16 +1781,28 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
   return {
     setMode,
     getMode: () => mode,
-    setPointMul,
-    getPointMul: () => pointMul,
+    setExploreAutoplay,
+    getExploreAutoplay: () => exploreAutoplay,
+    setExploreAutoplaySpeed,
+    getExploreAutoplaySpeed: () => autoplaySpeedMul,
+    getCheckpoints,
+    goToCheckpoint,
+    setNightMode(on) {
+      nightMode = !!on;
+      applyBackground();
+      return nightMode;
+    },
+    getNightMode: () => nightMode,
     dispose() {
       cancelAnimationFrame(raf);
       if (layoutRaf) cancelAnimationFrame(layoutRaf);
+      cancelCamTransition();
       ro.disconnect();
       const el = renderer.domElement;
       el.removeEventListener("wheel", onWheel);
       el.removeEventListener("pointermove", onPointerMove);
       el.removeEventListener("pointerdown", onPointerDown);
+      el.removeEventListener("pointerleave", onPointerLeave);
       el.removeEventListener("click", onClick);
       for (const n of exploreNodes) {
         stopNodeVideo(n);
@@ -1145,6 +1814,8 @@ export function initPath3D({ container, data, onSelect, initialMode = "overview"
       controls.dispose();
       renderer.dispose();
       el.remove();
+      fadeEl.remove();
+      for (const { pin } of checkpointPins) pin.remove();
     },
   };
 }
