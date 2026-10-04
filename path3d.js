@@ -1263,19 +1263,21 @@ export function initPath3D({
       n.group.visible = show;
       if (n.pick) n.pick.visible = t > 0.55;
       // Soft grow out of the mist
-      n.group.scale.setScalar(THREE.MathUtils.lerp(0.55, 1, easeOutCubic(t)));
+      const tEase = easeOutCubic(t);
+      n.group.scale.setScalar(THREE.MathUtils.lerp(0.55, 1, tEase));
       if (n.cloudMat) {
         // t=0 → fully washed into bg (tiny fogFar). t=1 → no distance fog.
         const fogFar = THREE.MathUtils.lerp(0.35, 1e6, Math.pow(Math.max(t, 0), 1.85));
         n.cloudMat.uniforms.uFogNear.value = fogFar * 0.02;
         n.cloudMat.uniforms.uFogFar.value = fogFar;
         n.cloudMat.uniforms.uFogColor.value.setHex(fogCol);
-        n.cloudMat.uniforms.uPointMul.value = POINT_MUL * Math.pow(t, 1.15);
-        n.cloudMat.uniforms.uDisp.value = baseDisp * THREE.MathUtils.lerp(0.2, 1, t);
+        // Gentler density/explode — peak cards used to pop from 0.2→1 too late
+        n.cloudMat.uniforms.uPointMul.value = POINT_MUL * THREE.MathUtils.lerp(0.35, 1, tEase);
+        n.cloudMat.uniforms.uDisp.value = baseDisp * THREE.MathUtils.lerp(0.55, 1, tEase);
         n.cloudMat.uniforms.uSpread.value = THREE.MathUtils.lerp(
-          CLOUD_FAR_SPREAD * 1.35,
+          CLOUD_FAR_SPREAD * 1.2,
           CLOUD_FAR_SPREAD,
-          t
+          tEase
         );
       }
     }
@@ -1355,10 +1357,16 @@ export function initPath3D({
     if (!landingIntro) return false;
     const ms = now - landingIntro.t0;
     const u = THREE.MathUtils.clamp(ms / landingIntro.dur, 0, 1);
-    // Cubic keeps more of the timeline in the visible rise than quint
-    const e = easeInOutCubic(u);
+    // Soft overall ease, then bias time toward the upper trail so the peak
+    // doesn't get cramped into the last beat (and snap-finish).
+    const e = easeInOutSine(u);
+    const eReveal = 1 - Math.pow(1 - e, 1.45);
     const { eleMin, eleMax, band, dur } = landingIntro;
-    const revealEle = THREE.MathUtils.lerp(eleMin - band * 0.45, eleMax + band * 0.7, e);
+    const revealEle = THREE.MathUtils.lerp(
+      eleMin - band * 0.45,
+      eleMax + band * 1.15,
+      eReveal
+    );
     applyLandingReveal(revealEle, band);
 
     // Lift the white veil quickly so the rising mist can read through
@@ -1438,6 +1446,8 @@ export function initPath3D({
     container.dataset.mode = mode;
     restoreOverviewNodesHome();
     applyOverviewCamera();
+    // Spin from the first unveil frame (applyOverviewCamera would leave it off mid-transition)
+    enableOverviewSpin();
     // Keep HTML pins hidden until the leave unveil (avoids labels over explore)
     for (const cp of checkpointPins) {
       cp.reveal = 1;
@@ -1464,6 +1474,12 @@ export function initPath3D({
       kind: "leave",
       handedOff: false,
     };
+  }
+
+  /** Overview should already be orbiting as it unveils on go-back. */
+  function enableOverviewSpin() {
+    controls.enabled = false; // no drag mid-veil; spin still runs via update()
+    controls.autoRotate = true;
   }
 
   function beginEnterExplore(endWalk = 0) {
@@ -1688,12 +1704,14 @@ export function initPath3D({
 
   function applyOverviewCamera() {
     const veilLock = !!landingIntro || pendingLandingIntro;
+    const leaveUnveil = camTransition?.kind === "leave";
     // During level-change, keep controls off until the transition finishes
     controls.enabled = !veilLock && !camTransition;
     controls.enablePan = true;
     controls.enableZoom = true;
     controls.enableRotate = true;
-    controls.autoRotate = !camTransition;
+    // Keep orbiting while overview fades in on go-back
+    controls.autoRotate = (!camTransition || leaveUnveil) && !veilLock;
     // Stay white while waiting for / playing the landing intro.
     // Don't clear the level-change veil mid-transition.
     if (!camTransition) {

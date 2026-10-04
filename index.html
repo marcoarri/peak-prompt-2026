@@ -477,7 +477,7 @@
   }
   </script>
   <script type="module">
-    import { initPath3D } from "./path3d.js?v=143";
+    import { initPath3D } from "./path3d.js?v=145";
 
     const data = window.TIMELINE_DATA;
     if (!data) {
@@ -737,13 +737,15 @@
     let lastFormedId;
     let lastUnlocked = -1;
     let maxWalk = 0;
+    let levelFading = false;
     function syncExploreProgress({ walkDist, formedItem, formedIndex, total, atEnd }) {
       setOutro(atEnd);
       const formedId = formedItem?.id ?? null;
       if (formedId !== lastFormedId) {
         lastFormedId = formedId;
         exploreMeta.classList.toggle("is-hidden", !formedItem);
-        exploreMeta.style.opacity = ""; // let CSS .is-hidden own visibility
+        // Don't fight the level-veil opacity while go-back / enter is running
+        if (!levelFading) exploreMeta.style.opacity = "";
         if (formedItem) {
           const pad = String(total).length;
           metaTime.textContent = formedItem.timeLocal ?? "";
@@ -835,7 +837,7 @@
       },
       onHoverItem: showCoords,
       onExploreProgress: syncExploreProgress,
-      // Level veil: footer + explore type. Header never fades.
+      // Level veil: footer + checkpoints + image meta. Header never fades.
       onTransitionFade: (veil, { direction = "enter", exploreChrome } = {}) => {
         if (siteFooter) siteFooter.style.opacity = String(Math.max(0, 1 - veil));
         const chrome =
@@ -847,12 +849,19 @@
         const c = String(Math.max(0, Math.min(1, chrome)));
         checkpointList.style.opacity = c;
         if (exploreFooter) exploreFooter.style.opacity = c;
+        // Formed-image info follows the same veil (skip when already hidden)
+        if (!exploreMeta.classList.contains("is-hidden")) {
+          exploreMeta.style.transition = "none";
+          exploreMeta.style.opacity = c;
+        }
       },
       onTransitionChange: (active, { durationMs = 0, direction = "enter" } = {}) => {
         clearTimeout(exploreUiTimer);
         clearTimeout(ctaRestartTimer);
+        levelFading = active;
         if (!active) {
           if (siteFooter) siteFooter.style.opacity = "";
+          exploreMeta.style.transition = "";
           if (direction === "enter") {
             document.documentElement.setAttribute("data-explore-ready", "");
             checkpointList.style.opacity = "1";
@@ -881,6 +890,10 @@
           exploreUiTimer = setTimeout(() => {
             document.documentElement.setAttribute("data-explore-ready", "");
           }, Math.max(0, durationMs - EXPLORE_UI_LEAD_MS));
+        } else if (direction === "leave" && !exploreMeta.classList.contains("is-hidden")) {
+          // Start from full so the veil can dissolve the meta with the scene
+          exploreMeta.style.transition = "none";
+          exploreMeta.style.opacity = "1";
         }
       },
       onIntroProgress: (u, meta = {}) => {
