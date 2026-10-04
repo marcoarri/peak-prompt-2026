@@ -720,19 +720,18 @@ export function initPath3D({
     return exploreAutoplay;
   }
 
-  let autoplaySpeedMul = 15; // default 15×; keys 1–9 → 5×…45× (key×5)
+  let autoplaySpeedMul = 1; // UI label 1–9; keys 1–9 → display xN
   function setExploreAutoplaySpeed(mul) {
-    const n = Math.round(Number(mul) || 15);
-    // Accept either the key (1–9) or the resolved multiplier (5–45)
-    if (n >= 1 && n <= 9) autoplaySpeedMul = n * 5;
-    else autoplaySpeedMul = THREE.MathUtils.clamp(n, 5, 45);
+    const n = Math.round(Number(mul) || 1);
+    autoplaySpeedMul = THREE.MathUtils.clamp(n, 1, 9);
     if (exploreAutoplay) reanchorAutoplay();
     return autoplaySpeedMul;
   }
-  // Constant cruise speed (explore-m/s)
+  // Constant cruise speed (explore-m/s). UI x1 = 10× base, so x9 = 90×.
   const AUTOPLAY_BASE_MPS = path.avgSpeed * PATH_COMPRESS;
+  const AUTOPLAY_UI_SPEED_SCALE = 10;
   function exploreAutoplaySpeed() {
-    return AUTOPLAY_BASE_MPS * autoplaySpeedMul;
+    return AUTOPLAY_BASE_MPS * autoplaySpeedMul * AUTOPLAY_UI_SPEED_SCALE;
   }
 
   function planeGeoFor(aspect) {

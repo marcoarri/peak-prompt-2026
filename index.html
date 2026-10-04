@@ -471,7 +471,7 @@
   }
   </script>
   <script type="module">
-    import { initPath3D } from "./path3d.js?v=120";
+    import { initPath3D } from "./path3d.js?v=121";
 
     const data = window.TIMELINE_DATA;
     if (!data) {
@@ -657,11 +657,11 @@
       requestAnimationFrame(frame);
     }
 
-    // Speed label stays "x1" for now — the real multiplier is still 15× (keys 1–9 change it)
     function syncExplorePlayUi(playing) {
       const on = playing ?? explorePlay.getAttribute("aria-pressed") === "true";
+      const mul = app?.getExploreAutoplaySpeed?.() ?? 1;
       explorePlay.setAttribute("aria-pressed", on ? "true" : "false");
-      explorePlay.textContent = on ? "PAUSE (x1)" : "AUTOPLAY (x1)";
+      explorePlay.textContent = on ? `PAUSE (x${mul})` : `AUTOPLAY (x${mul})`;
     }
 
     // 46.519012 → 46°31'8.44"N (seconds to 2 decimals, trailing zeros dropped)
