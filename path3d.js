@@ -52,6 +52,8 @@ const OVERVIEW_SPREAD = 1.15; // +15% spacing between images
 const OVERVIEW_CLOUD_SCALE = 9.5;
 const OVERVIEW_CLOUD_LONG = 80; // sparse grid — all media visible at once
 const OVERVIEW_DISP_MUL = 2; // +100% displacement vs base exploded mist
+// Light live drift — scaled with overview cloud size (explore uses ~0.055 m)
+const OVERVIEW_WIGGLE_M = 0.32;
 const POINT_MUL = 2.5;
 const DEFAULT_ACCEL = [0, -1, 0]; // upright portrait fallback
 // Covered snow cannons photographed along the trail (user-confirmed)
@@ -402,6 +404,8 @@ export function initPath3D({
   onExploreAutoplayChange,
   onModeChange,
   onHoverItem,
+  onIntroProgress,
+  onIntroComplete,
   checkpointIconSrc,
   initialMode = "overview",
 }) {
@@ -677,6 +681,7 @@ export function initPath3D({
 
   const overviewBillboards = []; // invisible pick planes
   const overviewNodes = []; // { group, pick }
+  const overviewCloudMats = []; // for live wiggle time updates
   const exploreNodes = [];
   const planeGeoCache = new Map(); // aspect key → geometry
   const _ovLook = new THREE.Vector3();
@@ -685,6 +690,7 @@ export function initPath3D({
   let walkDist = 0;
   let layoutRaf = 0;
   let camTransition = null; // overview → explore fly-in state
+  let landingIntro = null; // base→peak reveal on first load
   let exploreAutoplay = false;
   let autoplayLastMs = 0;
   // Soft follow of a linear target — avoids wall-clock catch-up jumps on heavy frames
@@ -841,6 +847,7 @@ export function initPath3D({
       const planeW = PHOTO_H * clamped * cloudScale;
       const planeH = PHOTO_H * cloudScale;
       const disp = DISP_MAX * cloudScale * OVERVIEW_DISP_MUL;
+      let cloudMat = null;
 
       if (dissolveTex) {
         const ovLong = OVERVIEW_CLOUD_LONG;
@@ -848,7 +855,7 @@ export function initPath3D({
           clamped >= 1 ? ovLong : Math.max(1, Math.round(ovLong * clamped));
         const ovH =
           clamped >= 1 ? Math.max(1, Math.round(ovLong / clamped)) : ovLong;
-        const cloudMat = makeCloudMaterial(dissolveTex, clamped);
+        cloudMat = makeCloudMaterial(dissolveTex, clamped);
         cloudMat.uniforms.uScale.value = (container.clientHeight || 800) * 0.5;
         cloudMat.uniforms.uPointMul.value = POINT_MUL;
         cloudMat.uniforms.uPlane.value.set(planeW, planeH);
@@ -858,10 +865,12 @@ export function initPath3D({
         // No distance fog in overview
         cloudMat.uniforms.uFogNear.value = 1e5;
         cloudMat.uniforms.uFogFar.value = 1e5 + 1;
+        cloudMat.uniforms.uWiggle.value = OVERVIEW_WIGGLE_M;
         const cloudPts = new THREE.Points(cloudGeoFor(ovW, ovH), cloudMat);
         cloudPts.frustumCulled = false;
         cloudPts.renderOrder = 5;
         ovGroup.add(cloudPts);
+        overviewCloudMats.push(cloudMat);
       }
 
       // Invisible pick plane (same footprint as the cloud core)
@@ -887,7 +896,13 @@ export function initPath3D({
 
       scene.add(ovGroup);
       overviewBillboards.push(pick);
-      overviewNodes.push({ group: ovGroup, pick });
+      overviewNodes.push({
+        group: ovGroup,
+        pick,
+        cloudMat,
+        ele: item.ele ?? 0,
+        jitter: hash01(item.id + ":intro"),
+      });
 
       const group = new THREE.Group();
       const hiMat = new THREE.MeshBasicMaterial({
@@ -983,6 +998,7 @@ export function initPath3D({
   // target, the visible marker is an HTML pin projected on top of the canvas
   const checkpointMarkers = [];
   const checkpointPins = [];
+  const MORPH_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
   {
     const markGeo = new THREE.CircleGeometry(6.5, 28);
     const markMat = new THREE.MeshBasicMaterial({ visible: false });
@@ -993,6 +1009,7 @@ export function initPath3D({
       mesh.position.copy(p.overviewWorld);
       mesh.userData.item = p.item;
       mesh.userData.checkpoint = true;
+      mesh.visible = false;
       scene.add(mesh);
       checkpointMarkers.push(mesh);
 
@@ -1000,6 +1017,7 @@ export function initPath3D({
       pin.type = "button";
       pin.className = "checkpoint-pin";
       pin.hidden = true;
+      pin.style.opacity = "0";
       if (checkpointIconSrc) {
         const icon = document.createElement("img");
         icon.src = checkpointIconSrc;
@@ -1007,28 +1025,66 @@ export function initPath3D({
         pin.appendChild(icon);
       }
       const label = document.createElement("span");
-      label.textContent = `checkpoint-${i + 1}`;
+      const targetText = `checkpoint-${i + 1}`;
+      label.textContent = "";
       pin.appendChild(label);
-      pin.addEventListener("click", () => goToCheckpoint(p.item.id));
+      pin.addEventListener("click", () => {
+        if (landingIntro) return;
+        goToCheckpoint(p.item.id);
+      });
       pin.addEventListener("pointerenter", () => onHoverItem?.(p.item));
       pin.addEventListener("pointerleave", () => onHoverItem?.(null));
       container.appendChild(pin);
-      checkpointPins.push({ pin, mesh });
+      checkpointPins.push({
+        pin,
+        mesh,
+        label,
+        targetText,
+        ele: p.item.ele ?? 0,
+        jitter: hash01(id + ":cp-intro"),
+        reveal: 0,
+      });
     });
+  }
+
+  function morphLabel(target, t, seed) {
+    if (t <= 0.001) return "";
+    if (t >= 0.999) return target;
+    const resolved = Math.floor(t * target.length);
+    const tick = (t * 28) | 0;
+    let out = "";
+    for (let i = 0; i < target.length; i++) {
+      const ch = target[i];
+      if (ch === "-" || ch === " ") {
+        out += ch;
+        continue;
+      }
+      if (i < resolved) out += ch;
+      else {
+        const r = hash01(`${seed}:${i}:${tick}`);
+        out += MORPH_CHARS[(r * MORPH_CHARS.length) | 0];
+      }
+    }
+    return out;
   }
 
   const _pinNdc = new THREE.Vector3();
   function updateCheckpointPins() {
     const w = renderer.domElement.clientWidth;
     const h = renderer.domElement.clientHeight;
-    for (const { pin, mesh } of checkpointPins) {
+    for (const cp of checkpointPins) {
+      const { pin, mesh, label, targetText } = cp;
       _pinNdc.copy(mesh.position).project(camera);
-      const show = mesh.visible && mode === "overview" && _pinNdc.z < 1;
+      const inFront = _pinNdc.z < 1;
+      const reveal = landingIntro ? cp.reveal : mode === "overview" && mesh.visible ? 1 : 0;
+      const show = mode === "overview" && inFront && reveal > 0.04;
       pin.hidden = !show;
       if (!show) continue;
       const x = (_pinNdc.x * 0.5 + 0.5) * w;
       const y = (-_pinNdc.y * 0.5 + 0.5) * h;
       pin.style.transform = `translate(${x}px, ${y}px) translate(-5.8px, -50%)`;
+      pin.style.opacity = String(reveal);
+      label.textContent = morphLabel(targetText, reveal, targetText);
     }
   }
 
@@ -1076,6 +1132,11 @@ export function initPath3D({
     return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   }
 
+  function easeOutCubic(u) {
+    const t = 1 - THREE.MathUtils.clamp(u, 0, 1);
+    return 1 - t * t * t;
+  }
+
   function bezier3(a, b, c, t, out) {
     const u = 1 - t;
     out.set(0, 0, 0)
@@ -1118,8 +1179,145 @@ export function initPath3D({
 
   function cancelCamTransition() {
     camTransition = null;
-    setViewFade(0);
+    if (!landingIntro) setViewFade(0);
     resetOverviewMistWash();
+  }
+
+  // First-load: fade from white + organic base→peak reveal of the volumetric mass
+  const LANDING_INTRO_MS = 5200;
+
+  function revealAmount(ele, jitter, revealEle, band) {
+    const localEle = ele + (jitter - 0.5) * band * 0.75;
+    // Three.js: smoothstep(x, min, max) — not GLSL's (edge0, edge1, x)
+    return THREE.MathUtils.smoothstep(
+      (revealEle - localEle) / Math.max(1e-3, band),
+      0,
+      1
+    );
+  }
+
+  function applyLandingReveal(revealEle, band) {
+    const fogCol = nightMode ? 0x000000 : 0xffffff;
+    const baseDisp = DISP_MAX * OVERVIEW_CLOUD_SCALE * OVERVIEW_DISP_MUL;
+    for (const n of overviewNodes) {
+      const t = revealAmount(n.ele, n.jitter, revealEle, band);
+      const show = t > 0.001;
+      n.group.visible = show;
+      if (n.pick) n.pick.visible = t > 0.55;
+      // Soft grow out of the mist
+      n.group.scale.setScalar(THREE.MathUtils.lerp(0.55, 1, easeOutCubic(t)));
+      if (n.cloudMat) {
+        // t=0 → fully washed into bg (tiny fogFar). t=1 → no distance fog.
+        const fogFar = THREE.MathUtils.lerp(0.35, 1e6, Math.pow(Math.max(t, 0), 1.85));
+        n.cloudMat.uniforms.uFogNear.value = fogFar * 0.02;
+        n.cloudMat.uniforms.uFogFar.value = fogFar;
+        n.cloudMat.uniforms.uFogColor.value.setHex(fogCol);
+        n.cloudMat.uniforms.uPointMul.value = POINT_MUL * Math.pow(t, 1.15);
+        n.cloudMat.uniforms.uDisp.value = baseDisp * THREE.MathUtils.lerp(0.2, 1, t);
+        n.cloudMat.uniforms.uSpread.value = THREE.MathUtils.lerp(
+          CLOUD_FAR_SPREAD * 1.35,
+          CLOUD_FAR_SPREAD,
+          t
+        );
+      }
+    }
+    for (const cp of checkpointPins) {
+      // Checkpoints trail the mist front slightly so labels bloom after the mass
+      cp.reveal = revealAmount(cp.ele, cp.jitter, revealEle - band * 0.15, band * 0.85);
+      cp.mesh.visible = cp.reveal > 0.2 && mode === "overview";
+    }
+  }
+
+  function beginLandingIntro() {
+    const eles = placements.map((p) => p.item.ele).filter((e) => e != null);
+    if (!eles.length || mode !== "overview") {
+      onIntroComplete?.();
+      return;
+    }
+    const eleMin = Math.min(...eles);
+    const eleMax = Math.max(...eles);
+    const band = Math.max(48, (eleMax - eleMin) * 0.14);
+    landingIntro = {
+      t0: performance.now(),
+      dur: LANDING_INTRO_MS,
+      eleMin,
+      eleMax,
+      band,
+    };
+    controls.enabled = false;
+    controls.autoRotate = true;
+    setViewFade(1);
+    applyLandingReveal(eleMin - band * 0.5, band);
+    for (const cp of checkpointPins) {
+      cp.reveal = 0;
+      cp.mesh.visible = false;
+      cp.label.textContent = "";
+      cp.pin.style.opacity = "0";
+    }
+    onIntroProgress?.(0, { durationMs: LANDING_INTRO_MS, ms: 0 });
+  }
+
+  function finishLandingIntro() {
+    if (!landingIntro) return;
+    const durationMs = landingIntro.dur;
+    landingIntro = null;
+    const baseDisp = DISP_MAX * OVERVIEW_CLOUD_SCALE * OVERVIEW_DISP_MUL;
+    for (const n of overviewNodes) {
+      n.group.visible = true;
+      n.group.scale.setScalar(1);
+      if (n.pick) n.pick.visible = true;
+      if (n.cloudMat) {
+        n.cloudMat.uniforms.uFogNear.value = 1e5;
+        n.cloudMat.uniforms.uFogFar.value = 1e5 + 1;
+        n.cloudMat.uniforms.uPointMul.value = POINT_MUL;
+        n.cloudMat.uniforms.uDisp.value = baseDisp;
+        n.cloudMat.uniforms.uSpread.value = CLOUD_FAR_SPREAD;
+      }
+    }
+    for (const cp of checkpointPins) {
+      cp.reveal = 1;
+      cp.mesh.visible = mode === "overview";
+      cp.label.textContent = cp.targetText;
+      cp.pin.style.opacity = mode === "overview" ? "1" : "0";
+    }
+    setViewFade(0);
+    if (mode === "overview") {
+      controls.enabled = true;
+      controls.autoRotate = true;
+    }
+    onIntroProgress?.(1, { durationMs, ms: durationMs });
+    onIntroComplete?.();
+  }
+
+  function tickLandingIntro(now) {
+    if (!landingIntro) return false;
+    const ms = now - landingIntro.t0;
+    const u = THREE.MathUtils.clamp(ms / landingIntro.dur, 0, 1);
+    // Cubic keeps more of the timeline in the visible rise than quint
+    const e = easeInOutCubic(u);
+    const { eleMin, eleMax, band, dur } = landingIntro;
+    const revealEle = THREE.MathUtils.lerp(eleMin - band * 0.45, eleMax + band * 0.7, e);
+    applyLandingReveal(revealEle, band);
+
+    // Lift the white veil quickly so the rising mist can read through
+    const veil = u < 0.14 ? 1 - easeInOutCubic(u / 0.14) : 0;
+    setViewFade(Math.max(0, veil));
+
+    controls.update();
+    const t = now * 0.001;
+    for (const mat of overviewCloudMats) mat.uniforms.uTime.value = t;
+    camera.getWorldPosition(_camPos);
+    for (const n of overviewNodes) {
+      if (!n.group.visible) continue;
+      n.pick.renderOrder = 20 - n.group.position.distanceToSquared(_camPos) * 1e-6;
+    }
+
+    onIntroProgress?.(u, { durationMs: dur, ms });
+    if (u >= 1) {
+      finishLandingIntro();
+      return true;
+    }
+    return true;
   }
 
   function handoffToExplore(endWalk = 0) {
@@ -1207,6 +1405,8 @@ export function initPath3D({
         n.pick.renderOrder = 20 - n.group.position.distanceToSquared(_camPos) * 1e-6;
       }
       for (const m of checkpointMarkers) m.quaternion.copy(camera.quaternion);
+      const tOv = now * 0.001;
+      for (const mat of overviewCloudMats) mat.uniforms.uTime.value = tOv;
 
       // Wash volumetric into the background as we approach the trailhead
       const wash = easeInOutCubic(THREE.MathUtils.clamp((flyU - 0.35) / 0.65, 0, 1));
@@ -1272,18 +1472,36 @@ export function initPath3D({
   }
 
   function applyOverviewCamera() {
-    controls.enabled = true;
+    const introLock = !!landingIntro;
+    controls.enabled = !introLock;
     controls.enablePan = true;
     controls.enableZoom = true;
     controls.enableRotate = true;
     controls.autoRotate = true;
-    setViewFade(0);
-    resetOverviewMistWash();
+    if (!introLock) setViewFade(0);
+    if (!introLock) resetOverviewMistWash();
     frameOverviewToFit();
     scene.fog = null;
     exploreRoot.visible = false;
-    for (const n of overviewNodes) n.group.visible = true;
-    for (const m of checkpointMarkers) m.visible = true;
+    // Don't clobber an in-flight base→peak reveal
+    if (!introLock) {
+      for (const n of overviewNodes) {
+        n.group.visible = true;
+        n.group.scale.setScalar(1);
+        if (n.cloudMat) {
+          n.cloudMat.uniforms.uPointMul.value = POINT_MUL;
+          n.cloudMat.uniforms.uDisp.value =
+            DISP_MAX * OVERVIEW_CLOUD_SCALE * OVERVIEW_DISP_MUL;
+          n.cloudMat.uniforms.uSpread.value = CLOUD_FAR_SPREAD;
+        }
+      }
+      for (const m of checkpointMarkers) m.visible = true;
+      for (const cp of checkpointPins) {
+        cp.reveal = 1;
+        cp.pin.style.opacity = "1";
+        if (cp.label) cp.label.textContent = cp.targetText;
+      }
+    }
     for (const n of exploreNodes) n.group.visible = false;
   }
 
@@ -1546,6 +1764,8 @@ export function initPath3D({
   function setMode(next, { animate = true } = {}) {
     const target = next === "explore" ? "explore" : "overview";
     setHover(null);
+    // Only abort the landing reveal when leaving overview (e.g. Explore CTA)
+    if (landingIntro && target !== "overview") finishLandingIntro();
     if (target === "explore" && mode === "overview" && animate && !camTransition) {
       mode = "explore";
       container.dataset.mode = mode;
@@ -1605,7 +1825,7 @@ export function initPath3D({
   }
 
   function onPointerMove(e) {
-    if (mode === "explore" || camTransition) {
+    if (mode === "explore" || camTransition || landingIntro) {
       setHover(null);
       return;
     }
@@ -1632,7 +1852,7 @@ export function initPath3D({
 
   function onClick(e) {
     if (Math.hypot(e.clientX - downX, e.clientY - downY) > 5) return;
-    if (camTransition) return;
+    if (camTransition || landingIntro) return;
     if (mode === "explore") {
       // pick nearest visible explore plane
       const rect = renderer.domElement.getBoundingClientRect();
@@ -1685,10 +1905,14 @@ export function initPath3D({
   let raf = 0;
   function tick() {
     raf = requestAnimationFrame(tick);
-    if (camTransition) {
+    if (landingIntro) {
+      tickLandingIntro(performance.now());
+    } else if (camTransition) {
       tickCamTransition(performance.now());
     } else if (mode === "overview") {
       controls.update();
+      const t = cloudClock.getElapsedTime();
+      for (const mat of overviewCloudMats) mat.uniforms.uTime.value = t;
       camera.getWorldPosition(_camPos);
       for (const n of overviewNodes) {
         n.pick.renderOrder = 20 - n.group.position.distanceToSquared(_camPos) * 1e-6;
@@ -1730,13 +1954,22 @@ export function initPath3D({
     renderer.render(scene, camera);
   }
 
-  // Boot
+  // Boot — hold white until media is ready, then play the landing intro
+  setViewFade(1);
   applyOverviewCamera();
+  controls.enabled = false;
   tick();
   buildMediaVisuals().then(() => {
     container.dataset.ready = "true";
-    setMode(mode);
+    if (mode === "explore") {
+      setMode("explore", { animate: false });
+      resize();
+      onIntroComplete?.();
+      return;
+    }
+    setMode("overview", { animate: false });
     resize();
+    beginLandingIntro();
   });
 
   window.__PP_DEBUG = () => {
@@ -1796,7 +2029,9 @@ export function initPath3D({
     dispose() {
       cancelAnimationFrame(raf);
       if (layoutRaf) cancelAnimationFrame(layoutRaf);
+      landingIntro = null;
       cancelCamTransition();
+      hideHoverTip();
       ro.disconnect();
       const el = renderer.domElement;
       el.removeEventListener("wheel", onWheel);

@@ -2,7 +2,7 @@
 <html lang="it" data-mode="overview">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <title>Peak Prompt — 3D</title>
   <style>
     @font-face {
@@ -52,8 +52,15 @@
       color: var(--fg);
       overflow: hidden;
       font-family: var(--font-display);
+      touch-action: none;
+      overscroll-behavior: none;
     }
 
+    /* Landing chrome opacity is driven by intro progress (see module script) */
+    .chrome-fade { opacity: 0; }
+    html[data-chrome="1"] .chrome-fade { opacity: 1; }
+    html[data-chrome="1"] .night-toggle.chrome-fade:hover,
+    html[data-chrome="1"] .night-toggle.chrome-fade:focus-visible { opacity: 0.5; }
     button {
       appearance: none;
       border: 0;
@@ -101,7 +108,11 @@
     .checkpoint-pin[hidden] { display: none; }
     .checkpoint-pin img { display: block; }
     html.night .checkpoint-pin img { filter: invert(1); }
-    .checkpoint-pin span { margin-bottom: 4.4px; }
+    .checkpoint-pin span {
+      margin-bottom: 4.4px;
+      font-variant-numeric: tabular-nums;
+      min-width: 11ch;
+    }
     .checkpoint-pin:hover span,
     .checkpoint-pin:focus-visible span { text-decoration: underline; }
 
@@ -154,20 +165,6 @@
       outline: none;
     }
 
-    .peak-info {
-      position: fixed;
-      top: 50%;
-      left: var(--edge);
-      z-index: 3;
-      margin: 0;
-      font-family: var(--font-label);
-      font-size: 12px;
-      font-weight: 500;
-      line-height: normal;
-      white-space: pre;
-      pointer-events: none;
-    }
-
     .explore-cta {
       position: fixed;
       top: calc(50% - 31.2px);
@@ -185,8 +182,14 @@
       text-underline-position: auto;        /* la linea torna a passare attraverso le discendenti */
       text-underline-offset: 10px;           /* distanza dalla linea di base: regola a piacere */
       text-decoration-skip-ink: auto;       /* il browser interrompe la linea attorno alle discendenti */
-
       text-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .explore-cta.is-ready {
+      opacity: 1;
+      pointer-events: auto;
     }
 
     html.night .explore-cta {
@@ -275,7 +278,6 @@
     html:not([data-mode="explore"]) .explore-play,
     html:not([data-mode="explore"]) .checkpoint-list,
     html[data-mode="explore"] .current-coords,
-    html[data-mode="explore"] .peak-info,
     html[data-mode="explore"] .explore-cta,
     html[data-mode="explore"] .site-footer {
       display: none;
@@ -335,20 +337,15 @@
 <body>
   <div id="path3dStage"></div>
 
-  <h1 class="site-title">PEAK PROMPT</h1>
+  <h1 class="site-title chrome-fade">PEAK PROMPT</h1>
 
-  <p class="current-coords" id="currentCoords" aria-live="polite">*current coordinates*</p>
+  <p class="current-coords chrome-fade" id="currentCoords" aria-live="polite">*current coordinates*</p>
 
-  <button type="button" class="night-toggle" id="nightToggle" aria-pressed="false">LIGHT</button>
+  <button type="button" class="night-toggle chrome-fade" id="nightToggle" aria-pressed="false">LIGHT</button>
 
-  <p class="peak-info">peak altitude:
-dislivello:
-time spent:
-medium pase:</p>
+  <button type="button" class="explore-cta" id="exploreCta" data-mode="explore" aria-hidden="true"></button>
 
-  <button type="button" class="explore-cta" data-mode="explore">explore the path to the peak</button>
-
-  <footer class="site-footer">
+  <footer class="site-footer chrome-fade">
     <p>We all walk the same path, but for each of us it’s a different experience.<br />
       The workshop is organised by Pittogramma (<a href="https://www.instagram.com/pittogramma.xyz/" target="_blank" rel="noopener">@pittogramma.xyz</a>) and led by Giga (<a href="https://www.instagram.com/gigadesignstudio/" target="_blank" rel="noopener">@gigadesignstudio</a>), a studio where design and technology merge into a creative synthesis.</p>
     <div class="site-footer-meta">
@@ -384,7 +381,7 @@ medium pase:</p>
   }
   </script>
   <script type="module">
-    import { initPath3D } from "./path3d.js?v=105";
+    import { initPath3D } from "./path3d.js?v=113";
 
     const data = window.TIMELINE_DATA;
     if (!data) {
@@ -397,8 +394,77 @@ medium pase:</p>
     const lbMeta = document.getElementById("lightboxMeta");
     const currentCoords = document.getElementById("currentCoords");
     const nightToggle = document.getElementById("nightToggle");
+    const exploreCta = document.getElementById("exploreCta");
     const explorePlay = document.getElementById("explorePlay");
     const checkpointList = document.getElementById("checkpointList");
+    const chromeEls = [
+      document.querySelector(".site-title"),
+      currentCoords,
+      nightToggle,
+      document.querySelector(".site-footer"),
+    ].filter(Boolean);
+
+    const CHROME_FADE_MS = 3000;
+    const CTA_DELAY_MS = 2000;
+    const CTA_MORPH_MS = 1600;
+    const CTA_TEXT = "explore the path to the peak";
+    const MORPH_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+    let introDurationMs = 5200;
+    let ctaMorphStarted = false;
+
+    function hash01(str) {
+      let h = 2166136261;
+      for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return (h >>> 0) / 4294967295;
+    }
+
+    function morphText(target, t, seed) {
+      if (t <= 0.001) return "";
+      if (t >= 0.999) return target;
+      const resolved = Math.floor(t * target.length);
+      const tick = (t * 28) | 0;
+      let out = "";
+      for (let i = 0; i < target.length; i++) {
+        const ch = target[i];
+        if (ch === " " || ch === "-" || ch === "." || ch === "…") {
+          out += ch;
+          continue;
+        }
+        if (i < resolved) out += ch;
+        else {
+          const r = hash01(`${seed}:${i}:${tick}`);
+          out += MORPH_CHARS[(r * MORPH_CHARS.length) | 0];
+        }
+      }
+      return out;
+    }
+
+    function setChromeOpacity(t) {
+      const v = String(Math.min(1, Math.max(0, t)));
+      for (const el of chromeEls) el.style.opacity = v;
+    }
+
+    function startExploreCtaMorph() {
+      if (ctaMorphStarted) return;
+      ctaMorphStarted = true;
+      exploreCta.classList.add("is-ready");
+      const t0 = performance.now();
+      const ease = (x) => x * x * (3 - 2 * x);
+      function frame(now) {
+        const u = Math.min(1, (now - t0) / CTA_MORPH_MS);
+        exploreCta.textContent = morphText(CTA_TEXT, ease(u), "explore-cta");
+        if (u < 1) {
+          requestAnimationFrame(frame);
+          return;
+        }
+        exploreCta.textContent = CTA_TEXT;
+        exploreCta.removeAttribute("aria-hidden");
+      }
+      requestAnimationFrame(frame);
+    }
 
     function syncExplorePlayUi(playing) {
       const on = playing ?? explorePlay.getAttribute("aria-pressed") === "true";
@@ -424,6 +490,28 @@ medium pase:</p>
       const lat = toDms(Number(item.lat), "N", "S");
       const lon = toDms(Number(item.lon), "E", "W");
       currentCoords.textContent = `${lat}, ${lon}`;
+    }
+
+    // Block browser page-zoom (ctrl/⌘+wheel, pinch, ⌘±). OrbitControls still zooms the 3D model.
+    window.addEventListener(
+      "wheel",
+      (e) => {
+        if (e.ctrlKey || e.metaKey) e.preventDefault();
+      },
+      { passive: false, capture: true }
+    );
+    window.addEventListener(
+      "keydown",
+      (e) => {
+        if (!(e.ctrlKey || e.metaKey)) return;
+        if (e.key === "+" || e.key === "=" || e.key === "-" || e.key === "_" || e.key === "0") {
+          e.preventDefault();
+        }
+      },
+      { capture: true }
+    );
+    for (const type of ["gesturestart", "gesturechange", "gestureend"]) {
+      document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
     }
 
     function openLightbox(item) {
@@ -471,6 +559,23 @@ medium pase:</p>
         if (mode !== "explore") syncExplorePlayUi(false);
       },
       onHoverItem: showCoords,
+      onIntroProgress: (u, meta = {}) => {
+        if (meta.durationMs) introDurationMs = meta.durationMs;
+        // Last 3s of the 3D reveal → chrome fades 0→1, full when the model is full
+        const startU = Math.max(0, 1 - CHROME_FADE_MS / Math.max(1, introDurationMs));
+        const t = startU >= 1 ? u : (u - startU) / (1 - startU);
+        setChromeOpacity(t);
+      },
+      onIntroComplete: () => {
+        setChromeOpacity(1);
+        for (const el of chromeEls) el.style.opacity = "";
+        document.documentElement.dataset.chrome = "1";
+        // CTA morphs in 2s after the rest of the type is fully up
+        window.setTimeout(() => {
+          if (document.documentElement.dataset.mode === "explore") return;
+          startExploreCtaMorph();
+        }, CTA_DELAY_MS);
+      },
       checkpointIconSrc: "assets/ui/checkpoint.svg",
       initialMode: "overview",
     });

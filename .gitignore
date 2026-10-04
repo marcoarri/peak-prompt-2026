@@ -16,7 +16,6 @@ Thumbs.db
 
 # Large media — keep locally, do not push
 assets/foto/
-assets/web/
 assets/audio/
 *.jpeg
 *.jpg
@@ -31,6 +30,10 @@ assets/audio/
 *.mp3
 *.wav
 *.aac
+
+# Web-optimized assets (needed for GitHub Pages)
+!assets/web/
+!assets/web/**
 
 # Backups / junk
 *.bak

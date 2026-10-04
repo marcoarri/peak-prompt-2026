@@ -1,0 +1,5863 @@
+{
+  "generated": "2026-10-03T20:07:56",
+  "sizes": {
+    "sm": 640,
+    "md": 1600,
+    "lg": 2560,
+    "pc": {
+      "longSide": 324,
+      "aspectPreserved": true
+    }
+  },
+  "media": [
+    {
+      "id": "Passi montagna",
+      "kind": "audio",
+      "original": "assets/audio/Passi montagna.m4a",
+      "taken": "2026-10-02T12:10:51.000000Z",
+      "duration": 60.29,
+      "audio": {
+        "src": "assets/web/audio/Passi montagna.m4a",
+        "bytes": 531885
+      }
+    },
+    {
+      "id": "Acqua",
+      "kind": "audio",
+      "original": "assets/audio/Acqua.m4a",
+      "taken": "2026-10-02T13:02:52.000000Z",
+      "duration": 20.33,
+      "audio": {
+        "src": "assets/web/audio/Acqua.m4a",
+        "bytes": 188540
+      }
+    },
+    {
+      "id": "IMG_6864",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6864.jpeg",
+      "taken": "2026-10-02T14:05:03+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6864.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 72491
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6864.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 310062
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6864.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 803069
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6864.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 43325
+      }
+    },
+    {
+      "id": "IMG_6865",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6865.jpeg",
+      "taken": "2026-10-02T14:05:06+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6865.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 59132
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6865.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 217183
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6865.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 542569
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6865.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 39878
+      }
+    },
+    {
+      "id": "IMG_6866",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6866.jpeg",
+      "taken": "2026-10-02T14:05:12+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6866.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 30416
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6866.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 191343
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6866.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 515877
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6866.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 9829
+      }
+    },
+    {
+      "id": "IMG_6867",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6867.jpeg",
+      "taken": "2026-10-02T14:05:32+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6867.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 37542
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6867.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 244197
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6867.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 676327
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6867.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 11807
+      }
+    },
+    {
+      "id": "IMG_6868",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6868.jpeg",
+      "taken": "2026-10-02T14:05:46+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6868.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 66547
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6868.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 265730
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6868.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 681460
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6868.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 41791
+      }
+    },
+    {
+      "id": "IMG_6869",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6869.jpeg",
+      "taken": "2026-10-02T14:06:04+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6869.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 62202
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6869.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 242342
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6869.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 622548
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6869.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 40222
+      }
+    },
+    {
+      "id": "IMG_6871",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6871.jpeg",
+      "taken": "2026-10-02T14:06:14+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6871.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 62209
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6871.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 202903
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6871.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 502050
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6871.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 41441
+      }
+    },
+    {
+      "id": "IMG_6872",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6872.jpeg",
+      "taken": "2026-10-02T14:06:30+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6872.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 28880
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6872.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 191269
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6872.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 533390
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6872.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 9359
+      }
+    },
+    {
+      "id": "IMG_6873",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6873.jpeg",
+      "taken": "2026-10-02T14:06:43+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6873.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 72969
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6873.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 301926
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6873.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 749215
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6873.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 43330
+      }
+    },
+    {
+      "id": "IMG_6874",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6874.jpeg",
+      "taken": "2026-10-02T14:06:58+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6874.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 72763
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6874.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 249183
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6874.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 578303
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6874.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 44127
+      }
+    },
+    {
+      "id": "IMG_6875",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6875.jpeg",
+      "taken": "2026-10-02T14:08:47+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6875.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 29119
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6875.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 180435
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6875.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 502346
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6875.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 9956
+      }
+    },
+    {
+      "id": "IMG_6877",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6877.jpeg",
+      "taken": "2026-10-02T14:10:00+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6877.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 67555
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6877.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 289532
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6877.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 742395
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6877.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 42002
+      }
+    },
+    {
+      "id": "IMG_6878",
+      "kind": "video",
+      "original": "assets/foto/IMG_6878.mov",
+      "taken": "2026-10-02T14:10:23+02:00",
+      "duration": 6.54,
+      "hasAudio": true,
+      "video": {
+        "src": "assets/web/video/IMG_6878.mp4",
+        "w": 1080,
+        "h": 1920,
+        "bytes": 2421230
+      },
+      "poster": {
+        "src": "assets/web/poster/IMG_6878.webp",
+        "bytes": 118708
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6878.avif",
+        "w": 182,
+        "h": 324,
+        "bytes": 5222
+      }
+    },
+    {
+      "id": "IMG_6879",
+      "kind": "video",
+      "original": "assets/foto/IMG_6879.mov",
+      "taken": "2026-10-02T14:12:17+02:00",
+      "duration": 7.19,
+      "hasAudio": true,
+      "video": {
+        "src": "assets/web/video/IMG_6879.mp4",
+        "w": 1080,
+        "h": 1920,
+        "bytes": 2717233
+      },
+      "poster": {
+        "src": "assets/web/poster/IMG_6879.webp",
+        "bytes": 134742
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6879.avif",
+        "w": 182,
+        "h": 324,
+        "bytes": 4332
+      }
+    },
+    {
+      "id": "IMG_6880",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6880.jpeg",
+      "taken": "2026-10-02T14:12:45+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6880.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 92909
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6880.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 482861
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6880.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 1181325
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6880.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 47167
+      }
+    },
+    {
+      "id": "IMG_6881",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6881.jpeg",
+      "taken": "2026-10-02T14:12:50+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6881.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 58578
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6881.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 202065
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6881.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 505001
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6881.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 40205
+      }
+    },
+    {
+      "id": "IMG_6882",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6882.jpeg",
+      "taken": "2026-10-02T14:13:01+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6882.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 104371
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6882.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 526272
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6882.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 1313478
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6882.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 50707
+      }
+    },
+    {
+      "id": "IMG_6884",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6884.jpeg",
+      "taken": "2026-10-02T14:13:28+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6884.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 32342
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6884.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 207851
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6884.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 549786
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6884.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 10179
+      }
+    },
+    {
+      "id": "IMG_6885",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6885.jpeg",
+      "taken": "2026-10-02T14:13:30+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6885.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 40120
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6885.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 270601
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6885.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 741517
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6885.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 12863
+      }
+    },
+    {
+      "id": "IMG_6886",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6886.jpeg",
+      "taken": "2026-10-02T14:14:10+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6886.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 96139
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6886.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 399305
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6886.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 902510
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6886.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 50252
+      }
+    },
+    {
+      "id": "IMG_6887",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6887.jpeg",
+      "taken": "2026-10-02T14:15:23+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6887.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 74108
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6887.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 325375
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6887.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 833761
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6887.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 43934
+      }
+    },
+    {
+      "id": "IMG_6888",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6888.jpeg",
+      "taken": "2026-10-02T14:15:57+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6888.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 26707
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6888.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 153750
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6888.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 421692
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6888.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 9389
+      }
+    },
+    {
+      "id": "IMG_6889",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6889.jpeg",
+      "taken": "2026-10-02T14:16:28+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6889.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 41204
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6889.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 275119
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6889.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 749866
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6889.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 12759
+      }
+    },
+    {
+      "id": "IMG_6890",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6890.jpeg",
+      "taken": "2026-10-02T14:17:02+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6890.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 74678
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6890.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 223983
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6890.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 512290
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6890.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 47706
+      }
+    },
+    {
+      "id": "IMG_6892",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6892.jpeg",
+      "taken": "2026-10-02T14:17:37+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6892.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 50920
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6892.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 355794
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6892.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 963861
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6892.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 15389
+      }
+    },
+    {
+      "id": "IMG_6893",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6893.jpeg",
+      "taken": "2026-10-02T14:18:14+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6893.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 95050
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6893.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 406343
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6893.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 941954
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6893.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 49790
+      }
+    },
+    {
+      "id": "IMG_6894",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6894.jpeg",
+      "taken": "2026-10-02T14:18:50+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6894.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 73159
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6894.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 277430
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6894.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 662200
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6894.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 44422
+      }
+    },
+    {
+      "id": "IMG_6895",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6895.jpeg",
+      "taken": "2026-10-02T14:19:15+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6895.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 27824
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6895.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 159231
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6895.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 441310
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6895.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 9758
+      }
+    },
+    {
+      "id": "IMG_6896",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6896.jpeg",
+      "taken": "2026-10-02T14:19:53+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6896.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 68045
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6896.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 276035
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6896.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 684278
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6896.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 41597
+      }
+    },
+    {
+      "id": "IMG_6897",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6897.jpeg",
+      "taken": "2026-10-02T14:20:48+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6897.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 66206
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6897.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 256853
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6897.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 622382
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6897.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 41800
+      }
+    },
+    {
+      "id": "IMG_6898",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6898.jpeg",
+      "taken": "2026-10-02T14:21:32+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6898.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 25612
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6898.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 149031
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6898.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 407199
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6898.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 9016
+      }
+    },
+    {
+      "id": "IMG_6899",
+      "kind": "video",
+      "original": "assets/foto/IMG_6899.mov",
+      "taken": "2026-10-02T14:21:36+02:00",
+      "duration": 7.19,
+      "hasAudio": true,
+      "video": {
+        "src": "assets/web/video/IMG_6899.mp4",
+        "w": 1806,
+        "h": 1016,
+        "bytes": 3927119
+      },
+      "poster": {
+        "src": "assets/web/poster/IMG_6899.webp",
+        "bytes": 266494
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6899.avif",
+        "w": 324,
+        "h": 182,
+        "bytes": 8147
+      }
+    },
+    {
+      "id": "IMG_6900",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6900.jpeg",
+      "taken": "2026-10-02T14:22:31+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6900.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 78135
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6900.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 420375
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6900.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 991919
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6900.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 22914
+      }
+    },
+    {
+      "id": "IMG_6901",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6901.jpeg",
+      "taken": "2026-10-02T14:22:47+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6901.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 32948
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6901.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 194785
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6901.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 534866
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6901.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 11391
+      }
+    },
+    {
+      "id": "IMG_6902",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6902.jpeg",
+      "taken": "2026-10-02T14:24:00+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6902.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 80113
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6902.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 387197
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6902.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 1017338
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6902.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 45506
+      }
+    },
+    {
+      "id": "IMG_6903",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6903.jpeg",
+      "taken": "2026-10-02T14:24:34+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6903.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 64323
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6903.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 258849
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6903.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 648237
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6903.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 41117
+      }
+    },
+    {
+      "id": "IMG_6904",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6904.jpeg",
+      "taken": "2026-10-02T14:25:48+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6904.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 30317
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6904.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 187753
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6904.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 515737
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6904.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 10335
+      }
+    },
+    {
+      "id": "IMG_6905",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6905.jpeg",
+      "taken": "2026-10-02T14:26:10+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6905.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 38974
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6905.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 262682
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6905.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 711308
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6905.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 11638
+      }
+    },
+    {
+      "id": "IMG_6906",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6906.jpeg",
+      "taken": "2026-10-02T14:28:54+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6906.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 62228
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6906.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 239682
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6906.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 601755
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6906.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 40685
+      }
+    },
+    {
+      "id": "IMG_6907",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6907.jpeg",
+      "taken": "2026-10-02T14:30:12+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6907.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 34174
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6907.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 198100
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6907.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 534297
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6907.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 11624
+      }
+    },
+    {
+      "id": "IMG_6908",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6908.jpeg",
+      "taken": "2026-10-02T14:30:15+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6908.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 24357
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6908.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 142932
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6908.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 387032
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6908.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 8590
+      }
+    },
+    {
+      "id": "IMG_6909",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6909.jpeg",
+      "taken": "2026-10-02T14:30:52+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6909.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 59491
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6909.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 220592
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6909.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 555167
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6909.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 39810
+      }
+    },
+    {
+      "id": "IMG_6910",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6910.jpeg",
+      "taken": "2026-10-02T14:32:15+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6910.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 43526
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6910.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 294000
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6910.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 806424
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6910.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 13661
+      }
+    },
+    {
+      "id": "IMG_6911",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6911.jpeg",
+      "taken": "2026-10-02T14:33:00+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6911.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 70394
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6911.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 300234
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6911.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 771474
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6911.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 42699
+      }
+    },
+    {
+      "id": "IMG_6912",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6912.jpeg",
+      "taken": "2026-10-02T14:33:27+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6912.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 34647
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6912.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 229846
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6912.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 620250
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6912.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 10698
+      }
+    },
+    {
+      "id": "IMG_6913",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6913.jpeg",
+      "taken": "2026-10-02T14:33:41+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6913.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 30927
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6913.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 191310
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6913.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 515959
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6913.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 10320
+      }
+    },
+    {
+      "id": "IMG_6914",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6914.jpeg",
+      "taken": "2026-10-02T14:33:45+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6914.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 22295
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6914.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 128566
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6914.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 356167
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6914.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 8223
+      }
+    },
+    {
+      "id": "IMG_6915",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6915.jpeg",
+      "taken": "2026-10-02T14:33:50+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6915.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 30065
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6915.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 183709
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6915.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 494270
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6915.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 10185
+      }
+    },
+    {
+      "id": "IMG_6916",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6916.jpeg",
+      "taken": "2026-10-02T14:34:10+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6916.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 88113
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6916.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 308586
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6916.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 665320
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6916.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 49462
+      }
+    },
+    {
+      "id": "IMG_6917",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6917.jpeg",
+      "taken": "2026-10-02T14:34:17+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6917.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 62269
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6917.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 241128
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6917.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 604049
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6917.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 40309
+      }
+    },
+    {
+      "id": "IMG_6918",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6918.jpeg",
+      "taken": "2026-10-02T14:35:09+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6918.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 30321
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6918.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 179948
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6918.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 486654
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6918.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 10638
+      }
+    },
+    {
+      "id": "IMG_6919",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6919.jpeg",
+      "taken": "2026-10-02T14:35:21+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6919.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 70427
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6919.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 293262
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6919.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 745156
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6919.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 43175
+      }
+    },
+    {
+      "id": "IMG_6920",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6920.jpeg",
+      "taken": "2026-10-02T14:38:04+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6920.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 29024
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6920.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 183882
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6920.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 513574
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6920.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 9821
+      }
+    },
+    {
+      "id": "IMG_6921",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6921.jpeg",
+      "taken": "2026-10-02T14:38:34+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6921.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 68326
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6921.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 286872
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6921.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 732490
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6921.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 41731
+      }
+    },
+    {
+      "id": "IMG_6922",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6922.jpeg",
+      "taken": "2026-10-02T14:38:55+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6922.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 82835
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6922.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 389082
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6922.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 996615
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6922.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 45921
+      }
+    },
+    {
+      "id": "IMG_6923",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6923.jpeg",
+      "taken": "2026-10-02T14:39:00+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6923.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 28075
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6923.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 163964
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6923.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 453107
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6923.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 9960
+      }
+    },
+    {
+      "id": "IMG_6924",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6924.jpeg",
+      "taken": "2026-10-02T14:39:09+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6924.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 24093
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6924.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 135470
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6924.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 368086
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6924.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 8844
+      }
+    },
+    {
+      "id": "IMG_6926",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6926.jpeg",
+      "taken": "2026-10-02T14:39:56+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6926.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 21684
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6926.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 112563
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6926.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 285111
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6926.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 8101
+      }
+    },
+    {
+      "id": "IMG_6927",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6927.jpeg",
+      "taken": "2026-10-02T14:40:13+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6927.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 61142
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6927.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 243785
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6927.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 611911
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6927.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 39726
+      }
+    },
+    {
+      "id": "IMG_6928",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6928.jpeg",
+      "taken": "2026-10-02T14:42:08+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6928.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 68584
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6928.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 294575
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6928.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 769408
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6928.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 42196
+      }
+    },
+    {
+      "id": "IMG_6929",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6929.jpeg",
+      "taken": "2026-10-02T14:42:24+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6929.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 67860
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6929.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 279448
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6929.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 705379
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6929.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 42158
+      }
+    },
+    {
+      "id": "IMG_6930",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6930.jpeg",
+      "taken": "2026-10-02T14:47:23+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6930.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 75701
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6930.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 354744
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6930.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 947201
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6930.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 44414
+      }
+    },
+    {
+      "id": "IMG_6931",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6931.jpeg",
+      "taken": "2026-10-02T14:47:37+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6931.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 100589
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6931.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 480130
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6931.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 1172782
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6931.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 49607
+      }
+    },
+    {
+      "id": "IMG_6932",
+      "kind": "video",
+      "original": "assets/foto/IMG_6932.mov",
+      "taken": "2026-10-02T14:48:25+02:00",
+      "duration": 10.51,
+      "hasAudio": true,
+      "video": {
+        "src": "assets/web/video/IMG_6932.mp4",
+        "w": 1920,
+        "h": 1080,
+        "bytes": 11223851
+      },
+      "poster": {
+        "src": "assets/web/poster/IMG_6932.webp",
+        "bytes": 570568
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6932.avif",
+        "w": 324,
+        "h": 182,
+        "bytes": 12342
+      }
+    },
+    {
+      "id": "IMG_6933",
+      "kind": "video",
+      "original": "assets/foto/IMG_6933.mov",
+      "taken": "2026-10-02T14:48:40+02:00",
+      "duration": 9.46,
+      "hasAudio": true,
+      "video": {
+        "src": "assets/web/video/IMG_6933.mp4",
+        "w": 1920,
+        "h": 1080,
+        "bytes": 7484570
+      },
+      "poster": {
+        "src": "assets/web/poster/IMG_6933.webp",
+        "bytes": 348410
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6933.avif",
+        "w": 324,
+        "h": 182,
+        "bytes": 9691
+      }
+    },
+    {
+      "id": "IMG_6934",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6934.jpeg",
+      "taken": "2026-10-02T14:56:11+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6934.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 66264
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6934.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 266730
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6934.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 661566
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6934.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 41633
+      }
+    },
+    {
+      "id": "IMG_6935",
+      "kind": "video",
+      "original": "assets/foto/IMG_6935.mov",
+      "taken": "2026-10-02T14:56:28+02:00",
+      "duration": 7.2,
+      "hasAudio": true,
+      "video": {
+        "src": "assets/web/video/IMG_6935.mp4",
+        "w": 1080,
+        "h": 1920,
+        "bytes": 7350371
+      },
+      "poster": {
+        "src": "assets/web/poster/IMG_6935.webp",
+        "bytes": 408702
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6935.avif",
+        "w": 182,
+        "h": 324,
+        "bytes": 10511
+      }
+    },
+    {
+      "id": "IMG_6936",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6936.jpeg",
+      "taken": "2026-10-02T14:57:26+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6936.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 24881
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6936.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 132675
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6936.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 351630
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6936.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 9031
+      }
+    },
+    {
+      "id": "IMG_6937",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6937.jpeg",
+      "taken": "2026-10-02T14:57:31+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6937.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 64561
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6937.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 258442
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6937.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 666880
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6937.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 41351
+      }
+    },
+    {
+      "id": "IMG_6938",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6938.jpeg",
+      "taken": "2026-10-02T14:57:58+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6938.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 27115
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6938.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 153237
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6938.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 422815
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6938.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 9613
+      }
+    },
+    {
+      "id": "IMG_6943",
+      "kind": "video",
+      "original": "assets/foto/IMG_6943.mov",
+      "taken": "2026-10-02T15:02:08+02:00",
+      "duration": 5.64,
+      "hasAudio": true,
+      "video": {
+        "src": "assets/web/video/IMG_6943.mp4",
+        "w": 1080,
+        "h": 1920,
+        "bytes": 4670563
+      },
+      "poster": {
+        "src": "assets/web/poster/IMG_6943.webp",
+        "bytes": 335776
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6943.avif",
+        "w": 182,
+        "h": 324,
+        "bytes": 11305
+      }
+    },
+    {
+      "id": "IMG_6945",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6945.jpeg",
+      "taken": "2026-10-02T15:04:04+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6945.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 37474
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6945.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 223210
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6945.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 581420
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6945.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 12098
+      }
+    },
+    {
+      "id": "IMG_6946",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6946.jpeg",
+      "taken": "2026-10-02T15:04:11+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6946.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 40582
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6946.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 256031
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6946.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 677295
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6946.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 13034
+      }
+    },
+    {
+      "id": "IMG_6947",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6947.jpeg",
+      "taken": "2026-10-02T15:04:34+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6947.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 46616
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6947.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 275841
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6947.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 715794
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6947.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 15046
+      }
+    },
+    {
+      "id": "IMG_6948",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6948.jpeg",
+      "taken": "2026-10-02T15:05:58+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6948.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 64926
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6948.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 258083
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6948.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 644933
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6948.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 41156
+      }
+    },
+    {
+      "id": "IMG_6949",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6949.jpeg",
+      "taken": "2026-10-02T15:06:07+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6949.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 11000
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6949.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 57239
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6949.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 153371
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6949.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 4582
+      }
+    },
+    {
+      "id": "IMG_6950",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6950.jpeg",
+      "taken": "2026-10-02T15:06:11+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6950.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 26528
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6950.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 154317
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6950.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 411474
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6950.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 9417
+      }
+    },
+    {
+      "id": "IMG_6951",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6951.jpeg",
+      "taken": "2026-10-02T15:06:22+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6951.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 76351
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6951.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 342823
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6951.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 879391
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6951.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 44642
+      }
+    },
+    {
+      "id": "IMG_6952",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6952.jpeg",
+      "taken": "2026-10-02T15:06:35+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6952.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 40726
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6952.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 254575
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6952.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 664130
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6952.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 12787
+      }
+    },
+    {
+      "id": "IMG_6953",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6953.jpeg",
+      "taken": "2026-10-02T15:07:25+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6953.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 70405
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6953.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 283093
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6953.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 692432
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6953.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 42876
+      }
+    },
+    {
+      "id": "IMG_6954",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6954.jpeg",
+      "taken": "2026-10-02T15:07:31+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6954.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 62196
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6954.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 249986
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6954.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 629058
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6954.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 40357
+      }
+    },
+    {
+      "id": "IMG_6957",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6957.jpeg",
+      "taken": "2026-10-02T15:07:41+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6957.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 31294
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6957.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 187246
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6957.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 513499
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6957.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 10623
+      }
+    },
+    {
+      "id": "IMG_6958",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6958.jpeg",
+      "taken": "2026-10-02T15:08:16+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6958.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 34001
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6958.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 216903
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6958.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 582064
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6958.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 11007
+      }
+    },
+    {
+      "id": "IMG_6959",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6959.jpeg",
+      "taken": "2026-10-02T15:08:56+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6959.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 72058
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6959.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 300219
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6959.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 740520
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6959.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 43329
+      }
+    },
+    {
+      "id": "IMG_6960",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6960.jpeg",
+      "taken": "2026-10-02T15:10:11+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6960.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 23845
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6960.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 136427
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6960.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 378336
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6960.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 8580
+      }
+    },
+    {
+      "id": "IMG_6961",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6961.jpeg",
+      "taken": "2026-10-02T15:10:19+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6961.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 28947
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6961.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 192864
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6961.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 522000
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6961.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 9611
+      }
+    },
+    {
+      "id": "IMG_6963",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6963.jpeg",
+      "taken": "2026-10-02T15:12:07+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6963.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 50560
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6963.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 312232
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6963.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 807760
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6963.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 15671
+      }
+    },
+    {
+      "id": "IMG_6964",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6964.jpeg",
+      "taken": "2026-10-02T15:12:39+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6964.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 44452
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6964.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 284762
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6964.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 750390
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6964.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 13349
+      }
+    },
+    {
+      "id": "IMG_6965",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6965.jpeg",
+      "taken": "2026-10-02T15:15:33+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6965.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 45338
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6965.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 287017
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6965.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 758989
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6965.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 14342
+      }
+    },
+    {
+      "id": "IMG_6966",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6966.jpeg",
+      "taken": "2026-10-02T15:15:51+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6966.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 31746
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6966.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 188712
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6966.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 504408
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6966.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 10791
+      }
+    },
+    {
+      "id": "IMG_6967",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6967.jpeg",
+      "taken": "2026-10-02T15:16:59+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6967.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 88037
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6967.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 425506
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6967.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 1047513
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6967.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 46460
+      }
+    },
+    {
+      "id": "IMG_6968",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6968.jpeg",
+      "taken": "2026-10-02T15:17:09+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6968.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 35410
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6968.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 209802
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6968.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 553257
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6968.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 11539
+      }
+    },
+    {
+      "id": "IMG_6969",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6969.jpeg",
+      "taken": "2026-10-02T15:17:33+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6969.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 60768
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6969.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 377119
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6969.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 960757
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6969.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 18504
+      }
+    },
+    {
+      "id": "IMG_6970",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6970.jpeg",
+      "taken": "2026-10-02T15:18:01+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6970.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 53380
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6970.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 327202
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6970.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 834547
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6970.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 15923
+      }
+    },
+    {
+      "id": "IMG_6971",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6971.jpeg",
+      "taken": "2026-10-02T15:18:25+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6971.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 56929
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6971.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 234617
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6971.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 657007
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6971.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 38947
+      }
+    },
+    {
+      "id": "IMG_6972",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6972.jpeg",
+      "taken": "2026-10-02T15:18:53+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6972.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 54734
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6972.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 158868
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6972.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 367373
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6972.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 39160
+      }
+    },
+    {
+      "id": "IMG_6973",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6973.jpeg",
+      "taken": "2026-10-02T15:25:53+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6973.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 59295
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6973.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 215697
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6973.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 515951
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6973.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 39189
+      }
+    },
+    {
+      "id": "IMG_6974",
+      "kind": "video",
+      "original": "assets/foto/IMG_6974.mov",
+      "taken": "2026-10-02T15:26:04+02:00",
+      "duration": 6.8,
+      "hasAudio": true,
+      "video": {
+        "src": "assets/web/video/IMG_6974.mp4",
+        "w": 1080,
+        "h": 1920,
+        "bytes": 7698261
+      },
+      "poster": {
+        "src": "assets/web/poster/IMG_6974.webp",
+        "bytes": 387144
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6974.avif",
+        "w": 182,
+        "h": 324,
+        "bytes": 12676
+      }
+    },
+    {
+      "id": "IMG_6975",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6975.jpeg",
+      "taken": "2026-10-02T15:26:29+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6975.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 78922
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6975.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 327391
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6975.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 806292
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6975.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 45282
+      }
+    },
+    {
+      "id": "IMG_6976",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6976.jpeg",
+      "taken": "2026-10-02T15:27:50+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6976.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 58495
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6976.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 211339
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6976.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 514002
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6976.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 39492
+      }
+    },
+    {
+      "id": "IMG_6977",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6977.jpeg",
+      "taken": "2026-10-02T15:27:53+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6977.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 45062
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6977.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 278792
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6977.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 730032
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6977.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 13890
+      }
+    },
+    {
+      "id": "IMG_6979",
+      "kind": "video",
+      "original": "assets/foto/IMG_6979.mov",
+      "taken": "2026-10-02T15:29:15+02:00",
+      "duration": 4.72,
+      "hasAudio": true,
+      "video": {
+        "src": "assets/web/video/IMG_6979.mp4",
+        "w": 1080,
+        "h": 1920,
+        "bytes": 3350522
+      },
+      "poster": {
+        "src": "assets/web/poster/IMG_6979.webp",
+        "bytes": 153080
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6979.avif",
+        "w": 182,
+        "h": 324,
+        "bytes": 10601
+      }
+    },
+    {
+      "id": "IMG_6980",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6980.jpeg",
+      "taken": "2026-10-02T15:29:31+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6980.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 27952
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6980.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 180285
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6980.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 474924
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6980.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 8910
+      }
+    },
+    {
+      "id": "IMG_6981",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6981.jpeg",
+      "taken": "2026-10-02T15:29:39+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6981.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 25811
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6981.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 156421
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6981.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 414701
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6981.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 8817
+      }
+    },
+    {
+      "id": "IMG_6982",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6982.jpeg",
+      "taken": "2026-10-02T15:32:29+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6982.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 69343
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6982.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 290477
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6982.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 734700
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6982.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 42315
+      }
+    },
+    {
+      "id": "IMG_6983",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6983.jpeg",
+      "taken": "2026-10-02T15:33:02+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6983.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 42465
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6983.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 281553
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6983.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 775221
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6983.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 13037
+      }
+    },
+    {
+      "id": "IMG_6985",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6985.jpeg",
+      "taken": "2026-10-02T15:34:42+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6985.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 57022
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6985.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 204612
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6985.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 498378
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6985.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 38553
+      }
+    },
+    {
+      "id": "IMG_6986",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6986.jpeg",
+      "taken": "2026-10-02T15:34:50+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6986.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 44919
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6986.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 298113
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6986.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 802535
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6986.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 13697
+      }
+    },
+    {
+      "id": "IMG_6987",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6987.jpeg",
+      "taken": "2026-10-02T15:35:08+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6987.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 23875
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6987.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 143418
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6987.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 386800
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6987.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 8056
+      }
+    },
+    {
+      "id": "IMG_6988",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6988.jpeg",
+      "taken": "2026-10-02T15:35:33+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6988.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 48050
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6988.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 316144
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6988.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 853075
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6988.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 14778
+      }
+    },
+    {
+      "id": "IMG_6989",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6989.jpeg",
+      "taken": "2026-10-02T15:35:53+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6989.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 27687
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6989.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 180408
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6989.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 486778
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6989.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 9252
+      }
+    },
+    {
+      "id": "IMG_6990",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6990.jpeg",
+      "taken": "2026-10-02T15:36:24+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6990.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 33674
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6990.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 224586
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6990.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 617749
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6990.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 11036
+      }
+    },
+    {
+      "id": "IMG_6991",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6991.jpeg",
+      "taken": "2026-10-02T15:36:27+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6991.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 28614
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6991.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 184207
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6991.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 497588
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6991.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 9454
+      }
+    },
+    {
+      "id": "IMG_6992",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6992.jpeg",
+      "taken": "2026-10-02T15:36:36+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6992.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 36709
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6992.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 252499
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6992.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 685886
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6992.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 10924
+      }
+    },
+    {
+      "id": "IMG_6993",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6993.jpeg",
+      "taken": "2026-10-02T15:37:19+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6993.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 54323
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6993.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 173405
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6993.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 393749
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6993.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 38088
+      }
+    },
+    {
+      "id": "IMG_6994",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6994.jpeg",
+      "taken": "2026-10-02T15:37:32+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6994.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 36262
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6994.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 259741
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6994.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 720564
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6994.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 11189
+      }
+    },
+    {
+      "id": "IMG_6995",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6995.jpeg",
+      "taken": "2026-10-02T15:37:48+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6995.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 28076
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6995.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 186538
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6995.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 499509
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6995.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 9060
+      }
+    },
+    {
+      "id": "IMG_6996",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6996.jpeg",
+      "taken": "2026-10-02T15:38:30+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6996.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 41186
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6996.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 255681
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6996.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 662833
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6996.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 12874
+      }
+    },
+    {
+      "id": "IMG_6997",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6997.jpeg",
+      "taken": "2026-10-02T15:38:50+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6997.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 75746
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6997.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 302630
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6997.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 753782
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6997.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 45230
+      }
+    },
+    {
+      "id": "IMG_6999",
+      "kind": "photo",
+      "original": "assets/foto/IMG_6999.jpeg",
+      "taken": "2026-10-02T15:39:07+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_6999.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 47655
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_6999.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 307643
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_6999.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 821553
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_6999.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 14333
+      }
+    },
+    {
+      "id": "IMG_7001",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7001.jpeg",
+      "taken": "2026-10-02T15:39:50+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7001.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 53154
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7001.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 259386
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7001.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 633599
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7001.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 19211
+      }
+    },
+    {
+      "id": "IMG_7002",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7002.jpeg",
+      "taken": "2026-10-02T15:39:55+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7002.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 42447
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7002.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 287574
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7002.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 778384
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7002.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 13102
+      }
+    },
+    {
+      "id": "IMG_7003",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7003.jpeg",
+      "taken": "2026-10-02T15:40:10+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7003.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 48595
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7003.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 281931
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7003.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 739838
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7003.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 15680
+      }
+    },
+    {
+      "id": "IMG_7005",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7005.jpeg",
+      "taken": "2026-10-02T15:40:31+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7005.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 58589
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7005.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 325441
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7005.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 827446
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7005.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 18540
+      }
+    },
+    {
+      "id": "IMG_7007",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7007.jpeg",
+      "taken": "2026-10-02T15:40:44+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7007.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 40985
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7007.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 253983
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7007.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 686558
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7007.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 13150
+      }
+    },
+    {
+      "id": "IMG_7008",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7008.jpeg",
+      "taken": "2026-10-02T15:40:56+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7008.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 44997
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7008.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 280416
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7008.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 732506
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7008.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 13923
+      }
+    },
+    {
+      "id": "IMG_7009",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7009.jpeg",
+      "taken": "2026-10-02T15:43:24+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7009.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 32780
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7009.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 178802
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7009.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 466626
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7009.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 11373
+      }
+    },
+    {
+      "id": "IMG_7010",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7010.jpeg",
+      "taken": "2026-10-02T15:44:07+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7010.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 41618
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7010.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 277557
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7010.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 746897
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7010.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 12811
+      }
+    },
+    {
+      "id": "IMG_7011",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7011.jpeg",
+      "taken": "2026-10-02T15:44:16+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7011.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 58465
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7011.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 209810
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7011.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 514998
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7011.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 39623
+      }
+    },
+    {
+      "id": "IMG_7012",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7012.jpeg",
+      "taken": "2026-10-02T15:44:28+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7012.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 43053
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7012.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 242135
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7012.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 640460
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7012.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 14500
+      }
+    },
+    {
+      "id": "IMG_7014",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7014.jpeg",
+      "taken": "2026-10-02T15:48:03+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7014.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 39209
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7014.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 221744
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7014.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 578531
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7014.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 13073
+      }
+    },
+    {
+      "id": "IMG_7015",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7015.jpeg",
+      "taken": "2026-10-02T15:48:05+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7015.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 43119
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7015.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 252784
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7015.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 653835
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7015.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 13749
+      }
+    },
+    {
+      "id": "IMG_7016",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7016.jpeg",
+      "taken": "2026-10-02T15:48:29+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7016.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 47224
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7016.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 266073
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7016.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 687638
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7016.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 15866
+      }
+    },
+    {
+      "id": "IMG_7017",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7017.jpeg",
+      "taken": "2026-10-02T15:48:44+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7017.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 42878
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7017.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 252176
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7017.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 673498
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7017.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 14410
+      }
+    },
+    {
+      "id": "IMG_7018",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7018.jpeg",
+      "taken": "2026-10-02T15:50:05+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7018.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 61144
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7018.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 219316
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7018.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 526212
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7018.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 40626
+      }
+    },
+    {
+      "id": "IMG_7019",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7019.jpeg",
+      "taken": "2026-10-02T15:51:19+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7019.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 27518
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7019.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 173184
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7019.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 464525
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7019.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 9172
+      }
+    },
+    {
+      "id": "IMG_7020",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7020.jpeg",
+      "taken": "2026-10-02T15:52:44+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7020.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 34022
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7020.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 209117
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7020.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 561339
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7020.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 11180
+      }
+    },
+    {
+      "id": "IMG_7021",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7021.jpeg",
+      "taken": "2026-10-02T15:52:53+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7021.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 35756
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7021.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 207515
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7021.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 536047
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7021.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 11698
+      }
+    },
+    {
+      "id": "IMG_7022",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7022.jpeg",
+      "taken": "2026-10-02T15:54:57+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7022.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 50825
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7022.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 314906
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7022.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 837796
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7022.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 16223
+      }
+    },
+    {
+      "id": "IMG_7023",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7023.jpeg",
+      "taken": "2026-10-02T15:55:25+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7023.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 47680
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7023.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 278863
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7023.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 714049
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7023.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 15213
+      }
+    },
+    {
+      "id": "IMG_7024",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7024.jpeg",
+      "taken": "2026-10-02T15:57:06+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7024.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 34527
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7024.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 214133
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7024.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 568713
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7024.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 11429
+      }
+    },
+    {
+      "id": "IMG_7025",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7025.jpeg",
+      "taken": "2026-10-02T15:57:27+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7025.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 22586
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7025.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 124656
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7025.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 327880
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7025.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 8214
+      }
+    },
+    {
+      "id": "IMG_7026",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7026.jpeg",
+      "taken": "2026-10-02T15:57:57+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7026.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 44242
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7026.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 259164
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7026.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 674765
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7026.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 14279
+      }
+    },
+    {
+      "id": "IMG_7027",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7027.jpeg",
+      "taken": "2026-10-02T15:58:25+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7027.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 30819
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7027.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 188599
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7027.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 506179
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7027.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 10335
+      }
+    },
+    {
+      "id": "IMG_7028",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7028.jpeg",
+      "taken": "2026-10-02T15:59:06+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7028.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 56282
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7028.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 351466
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7028.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 914347
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7028.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 17125
+      }
+    },
+    {
+      "id": "IMG_7030",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7030.jpeg",
+      "taken": "2026-10-02T15:59:29+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7030.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 21377
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7030.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 91514
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7030.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 266273
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7030.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 8661
+      }
+    },
+    {
+      "id": "IMG_7032",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7032.jpeg",
+      "taken": "2026-10-02T16:01:07+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7032.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 24057
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7032.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 112201
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7032.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 314260
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7032.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 9083
+      }
+    },
+    {
+      "id": "IMG_7038",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7038.jpeg",
+      "taken": "2026-10-02T16:01:21+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7038.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 12501
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7038.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 63292
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7038.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 169967
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7038.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 4630
+      }
+    },
+    {
+      "id": "IMG_7043",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7043.jpeg",
+      "taken": "2026-10-02T16:05:16+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7043.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 27610
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7043.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 137855
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7043.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 375762
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7043.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 10246
+      }
+    },
+    {
+      "id": "IMG_7045",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7045.jpeg",
+      "taken": "2026-10-02T16:05:59+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7045.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 56435
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7045.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 189337
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7045.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 457732
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7045.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 39293
+      }
+    },
+    {
+      "id": "IMG_7046",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7046.jpeg",
+      "taken": "2026-10-02T16:07:47+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7046.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 35361
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7046.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 206698
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7046.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 550134
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7046.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 12009
+      }
+    },
+    {
+      "id": "IMG_7047",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7047.jpeg",
+      "taken": "2026-10-02T16:07:55+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7047.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 72865
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7047.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 287461
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7047.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 729967
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7047.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 44272
+      }
+    },
+    {
+      "id": "IMG_7048",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7048.jpeg",
+      "taken": "2026-10-02T16:08:03+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7048.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 34845
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7048.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 190655
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7048.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 484310
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7048.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 11690
+      }
+    },
+    {
+      "id": "IMG_7049",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7049.jpeg",
+      "taken": "2026-10-02T16:08:36+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7049.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 32693
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7049.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 194136
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7049.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 529380
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7049.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 11307
+      }
+    },
+    {
+      "id": "IMG_7050",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7050.jpeg",
+      "taken": "2026-10-02T16:08:56+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7050.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 28102
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7050.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 164273
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7050.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 442621
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7050.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 9349
+      }
+    },
+    {
+      "id": "IMG_7051",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7051.jpeg",
+      "taken": "2026-10-02T16:09:03+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7051.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 23850
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7051.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 147502
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7051.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 403130
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7051.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 8187
+      }
+    },
+    {
+      "id": "IMG_7052",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7052.jpeg",
+      "taken": "2026-10-02T16:10:31+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7052.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 29628
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7052.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 164943
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7052.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 435846
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7052.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 10042
+      }
+    },
+    {
+      "id": "IMG_7053",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7053.jpeg",
+      "taken": "2026-10-02T16:11:45+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7053.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 25918
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7053.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 145562
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7053.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 379819
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7053.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 8884
+      }
+    },
+    {
+      "id": "IMG_7054",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7054.jpeg",
+      "taken": "2026-10-02T16:11:47+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7054.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 31019
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7054.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 181648
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7054.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 484827
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7054.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 10536
+      }
+    },
+    {
+      "id": "IMG_7055",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7055.jpeg",
+      "taken": "2026-10-02T16:13:43+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7055.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 38569
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7055.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 221994
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7055.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 592628
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7055.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 12873
+      }
+    },
+    {
+      "id": "IMG_7056",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7056.jpeg",
+      "taken": "2026-10-02T16:13:46+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7056.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 69372
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7056.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 266723
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7056.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 665301
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7056.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 42914
+      }
+    },
+    {
+      "id": "IMG_7057",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7057.jpeg",
+      "taken": "2026-10-02T16:15:46+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7057.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 63539
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7057.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 222053
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7057.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 529882
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7057.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 41086
+      }
+    },
+    {
+      "id": "IMG_7058",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7058.jpeg",
+      "taken": "2026-10-02T16:15:54+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7058.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 48475
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7058.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 273012
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7058.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 695798
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7058.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 15643
+      }
+    },
+    {
+      "id": "IMG_7060",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7060.jpeg",
+      "taken": "2026-10-02T16:17:26+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7060.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 25591
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7060.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 139937
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7060.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 367101
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7060.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 9132
+      }
+    },
+    {
+      "id": "IMG_7061",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7061.jpeg",
+      "taken": "2026-10-02T16:17:34+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7061.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 73270
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7061.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 283995
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7061.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 705149
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7061.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 44650
+      }
+    },
+    {
+      "id": "IMG_7063",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7063.jpeg",
+      "taken": "2026-10-02T16:20:15+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7063.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 41996
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7063.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 246677
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7063.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 649654
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7063.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 13937
+      }
+    },
+    {
+      "id": "IMG_7064",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7064.jpeg",
+      "taken": "2026-10-02T16:20:19+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7064.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 25895
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7064.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 149035
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7064.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 394589
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7064.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 8765
+      }
+    },
+    {
+      "id": "IMG_7065",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7065.jpeg",
+      "taken": "2026-10-02T16:20:29+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7065.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 16252
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7065.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 83158
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7065.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 220535
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7065.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 6031
+      }
+    },
+    {
+      "id": "IMG_7067",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7067.jpeg",
+      "taken": "2026-10-02T16:21:50+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7067.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 61092
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7067.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 233701
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7067.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 589234
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7067.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 40358
+      }
+    },
+    {
+      "id": "IMG_7068",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7068.jpeg",
+      "taken": "2026-10-02T16:21:54+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7068.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 29399
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7068.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 174282
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7068.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 443367
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7068.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 9606
+      }
+    },
+    {
+      "id": "IMG_7070",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7070.jpeg",
+      "taken": "2026-10-02T16:22:19+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7070.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 28788
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7070.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 176996
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7070.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 479254
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7070.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 9679
+      }
+    },
+    {
+      "id": "IMG_7071",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7071.jpeg",
+      "taken": "2026-10-02T16:23:01+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7071.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 58272
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7071.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 223862
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7071.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 561746
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7071.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 38683
+      }
+    },
+    {
+      "id": "IMG_7072",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7072.jpeg",
+      "taken": "2026-10-02T16:23:45+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7072.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 38633
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7072.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 215654
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7072.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 552354
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7072.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 13086
+      }
+    },
+    {
+      "id": "IMG_7073",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7073.jpeg",
+      "taken": "2026-10-02T16:23:51+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7073.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 18703
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7073.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 103387
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7073.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 283236
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7073.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 7007
+      }
+    },
+    {
+      "id": "IMG_7074",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7074.jpeg",
+      "taken": "2026-10-02T16:23:57+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7074.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 31404
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7074.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 202538
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7074.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 548848
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7074.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 10476
+      }
+    },
+    {
+      "id": "IMG_7075",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7075.jpeg",
+      "taken": "2026-10-02T16:24:03+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7075.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 25473
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7075.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 148193
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7075.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 383099
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7075.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 9035
+      }
+    },
+    {
+      "id": "IMG_7076",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7076.jpeg",
+      "taken": "2026-10-02T16:24:17+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7076.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 33324
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7076.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 192537
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7076.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 510541
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7076.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 11247
+      }
+    },
+    {
+      "id": "IMG_7079",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7079.jpeg",
+      "taken": "2026-10-02T16:26:19+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7079.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 22423
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7079.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 134001
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7079.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 346144
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7079.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 7539
+      }
+    },
+    {
+      "id": "IMG_7080",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7080.jpeg",
+      "taken": "2026-10-02T16:26:41+02:00",
+      "width": 3672,
+      "height": 2754,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7080.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 16117
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7080.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 80161
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7080.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 201099
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7080.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 6344
+      }
+    },
+    {
+      "id": "IMG_7081",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7081.jpeg",
+      "taken": "2026-10-02T16:26:50+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7081.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 28730
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7081.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 182483
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7081.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 499193
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7081.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 9592
+      }
+    },
+    {
+      "id": "IMG_7082",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7082.jpeg",
+      "taken": "2026-10-02T16:28:21+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7082.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 49655
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7082.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 147816
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7082.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 353793
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7082.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 36837
+      }
+    },
+    {
+      "id": "IMG_7083",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7083.jpeg",
+      "taken": "2026-10-02T16:29:10+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7083.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 50710
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7083.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 159973
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7083.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 396703
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7083.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 37329
+      }
+    },
+    {
+      "id": "IMG_7084",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7084.jpeg",
+      "taken": "2026-10-02T16:29:52+02:00",
+      "width": 3024,
+      "height": 4032,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7084.avif",
+        "w": 480,
+        "h": 640,
+        "bytes": 61200
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7084.avif",
+        "w": 1200,
+        "h": 1600,
+        "bytes": 209508
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7084.avif",
+        "w": 1920,
+        "h": 2560,
+        "bytes": 508809
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7084.avif",
+        "w": 243,
+        "h": 324,
+        "bytes": 41006
+      }
+    },
+    {
+      "id": "IMG_7085",
+      "kind": "photo",
+      "original": "assets/foto/IMG_7085.jpeg",
+      "taken": "2026-10-02T16:30:17+02:00",
+      "width": 4032,
+      "height": 3024,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_7085.avif",
+        "w": 640,
+        "h": 480,
+        "bytes": 12201
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_7085.avif",
+        "w": 1600,
+        "h": 1200,
+        "bytes": 57780
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_7085.avif",
+        "w": 2560,
+        "h": 1920,
+        "bytes": 144407
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_7085.avif",
+        "w": 324,
+        "h": 243,
+        "bytes": 4912
+      }
+    },
+    {
+      "id": "Serena urla",
+      "kind": "audio",
+      "original": "assets/audio/Serena urla.m4a",
+      "taken": "2026-10-03T08:12:13.000000Z",
+      "duration": 1.56,
+      "audio": {
+        "src": "assets/web/audio/Serena urla.m4a",
+        "bytes": 13306
+      }
+    }
+  ]
+}
