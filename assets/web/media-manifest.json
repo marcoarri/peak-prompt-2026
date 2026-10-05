@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-03T20:07:56",
+  "generated": "2026-10-05T21:39:35",
   "sizes": {
     "sm": 640,
     "md": 1600,
@@ -10,6 +10,38 @@
     }
   },
   "media": [
+    {
+      "id": "IMG_0001",
+      "kind": "photo",
+      "original": "assets/foto/IMG_0001.jpeg",
+      "taken": null,
+      "width": 3500,
+      "height": 2326,
+      "sm": {
+        "src": "assets/web/img/sm/IMG_0001.avif",
+        "w": 640,
+        "h": 425,
+        "bytes": 17977
+      },
+      "md": {
+        "src": "assets/web/img/md/IMG_0001.avif",
+        "w": 1600,
+        "h": 1063,
+        "bytes": 71980
+      },
+      "lg": {
+        "src": "assets/web/img/lg/IMG_0001.avif",
+        "w": 2560,
+        "h": 1701,
+        "bytes": 177893
+      },
+      "pc": {
+        "src": "assets/web/img/pc/IMG_0001.avif",
+        "w": 324,
+        "h": 215,
+        "bytes": 7496
+      }
+    },
     {
       "id": "Passi montagna",
       "kind": "audio",

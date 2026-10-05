@@ -51,6 +51,25 @@ VIDEO_TIME_OVERRIDES = {
 }
 
 
+# Media outside the hike (no EXIF, not on the GPX): fixed data shown as-is.
+#   extra   → not counted in the "N/184" total (shows as 185/184)
+#   detachM → metres past the trail end (explore: longer gap before it)
+#   hideInOverview → not drawn in the volumetric overview (explore only)
+EXTRA_MEDIA = {
+    # Photopoint Lagazuoi group shot, 03.10.2026 18:05 — closes the walk
+    "IMG_0001": {
+        "time": "2026-10-03T16:05:20Z",  # real capture time: sorts after the hike
+        "timeLocal": "00:00:00",
+        "lat": 46.527677,  # a few metres off the last photo (IMG_7085)
+        "lon": 12.00921,
+        "ele": 2739.9,
+        "extra": True,
+        "detachM": 110,
+        "hideInOverview": True,
+    },
+}
+
+
 def local_tag(tag: str) -> str:
     return tag.split("}")[-1]
 
@@ -219,6 +238,19 @@ def main():
     items = []
     for path in media_files:
         kind = "video" if path.suffix.lower() in VIDEO_EXT else "photo"
+        extra = EXTRA_MEDIA.get(path.stem)
+        if extra:
+            items.append(
+                {
+                    "id": path.stem,
+                    "file": path.name,
+                    **web_fields(manifest.get(path.stem), f"assets/foto/{path.name}"),
+                    "kind": kind,
+                    "timeSource": "manual",
+                    **extra,
+                }
+            )
+            continue
         override = VIDEO_TIME_OVERRIDES.get(path.stem) if kind == "video" else None
         if override:
             hh, mm = map(int, override.split(":"))

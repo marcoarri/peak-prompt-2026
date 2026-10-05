@@ -17,7 +17,7 @@
   }
   </script>
   <!-- Fetch the 3D modules in parallel with the page instead of one after another -->
-  <link rel="modulepreload" href="./path3d.js?v=147" />
+  <link rel="modulepreload" href="./path3d.js?v=152" />
   <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js" />
   <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/controls/OrbitControls.js" />
   <style>
@@ -317,6 +317,20 @@
       grid-template-columns: repeat(3, 263px);
       justify-content: center;
     }
+
+    /* TEMP (dev): jump to the last photo — remove with the button below */
+    .dev-last-media {
+      position: fixed;
+      right: var(--edge);
+      bottom: 16px;
+      z-index: 3;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: normal;
+      text-decoration: underline;
+    }
+    html:not([data-mode="explore"]) .dev-last-media,
+    html:not([data-explore-ready]) .dev-last-media { display: none; }
 
     /* Explore mode */
     html[data-mode="explore"] .site-title { font-weight: 400; }
@@ -737,6 +751,9 @@
     <span>scroll to explore the path</span>
   </div>
 
+  <!-- TEMP (dev): jump to the last photo of the walk -->
+  <button type="button" class="dev-last-media" id="devLastMedia">[dev] LAST IMAGE</button>
+
   <div class="lightbox" id="lightbox" hidden>
     <div class="lightbox-inner">
       <div id="lightboxStage"></div>
@@ -747,9 +764,9 @@
     </div>
   </div>
 
-  <script src="timeline-data.js"></script>
+  <script src="timeline-data.js?v=3"></script>
   <script type="module">
-    import { initPath3D } from "./path3d.js?v=147";
+    import { initPath3D } from "./path3d.js?v=152";
 
     const data = window.TIMELINE_DATA;
     if (!data) {
@@ -790,7 +807,8 @@
     const CTA_TEXT = "explore the path to the peak";
     const MORPH_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz0123456789#%*+=";
     const OUTRO_MORPH_MS = 3200; // longer than the CTA
-    const OUTRO_TEXT = "We all walk the same path,\nbut for each of us it’s a different experience";
+    const OUTRO_EXIT_MORPH_MS = 1600; // scrolling back: same morph in reverse, faster
+    const OUTRO_TEXT = "We all walk the same path,\nbut for each of us\nit’s a different experience";
     const HEADER_MORPH_MS = 1200;
     const NIGHT_MORPH_MS = 600;
     const LIGHT_TEXT = "LIGHT";
@@ -888,29 +906,43 @@
       requestAnimationFrame(frame);
     }
 
-    // End of the walk: closing line morphs + fades in, leaves when scrolling back
+    // End of the walk: closing line morphs + fades in; scrolling back runs the
+    // same morph in reverse (scramble R→L + fade out). One shared progress, so
+    // a direction change mid-way continues from where the text is.
     let outroShown = false;
-    let outroMorphId = 0;
-    function setOutro(show) {
-      if (show === outroShown) return;
+    let outroU = 0; // 0 = gone … 1 = fully decoded
+    let outroRaf = 0;
+    let outroLast = 0;
+    function renderOutro() {
+      const e = outroU * outroU * (3 - 2 * outroU);
+      exploreOutro.style.opacity = String(e);
+      exploreOutro.textContent = morphText(OUTRO_TEXT, e, outroShown ? "explore-outro" : "explore-outro-out");
+    }
+    function stepOutro(now) {
+      const dt = Math.max(0, now - outroLast);
+      outroLast = now;
+      outroU = outroShown
+        ? Math.min(1, outroU + dt / OUTRO_MORPH_MS)
+        : Math.max(0, outroU - dt / OUTRO_EXIT_MORPH_MS);
+      renderOutro();
+      const moving = outroShown ? outroU < 1 : outroU > 0;
+      outroRaf = moving ? requestAnimationFrame(stepOutro) : 0;
+    }
+    /** @param {boolean} show @param {{instant?: boolean}} [opts] instant = no morph (mode change) */
+    function setOutro(show, { instant = false } = {}) {
+      if (show === outroShown && !instant) return;
       outroShown = show;
-      const id = ++outroMorphId;
-      if (!show) {
-        exploreOutro.style.opacity = "0";
-        exploreOutro.textContent = "";
+      if (instant) {
+        cancelAnimationFrame(outroRaf);
+        outroRaf = 0;
+        outroU = show ? 1 : 0;
+        renderOutro();
         return;
       }
-      const t0 = performance.now();
-      const ease = (x) => x * x * (3 - 2 * x);
-      function frame(now) {
-        if (id !== outroMorphId) return;
-        const u = Math.min(1, (now - t0) / OUTRO_MORPH_MS);
-        const e = ease(u);
-        exploreOutro.style.opacity = String(e);
-        exploreOutro.textContent = morphText(OUTRO_TEXT, e, "explore-outro");
-        if (u < 1) requestAnimationFrame(frame);
+      if (!outroRaf) {
+        outroLast = performance.now();
+        outroRaf = requestAnimationFrame(stepOutro);
       }
-      requestAnimationFrame(frame);
     }
 
     function setChromeOpacity(t) {
@@ -1109,7 +1141,7 @@
         morphHeader(mode);
         if (mode !== "explore") {
           syncExplorePlayUi(false);
-          setOutro(false);
+          setOutro(false, { instant: true }); // leaving explore: no reverse morph
         }
       },
       onHoverItem: showCoords,
@@ -1235,6 +1267,12 @@
         app?.setMode?.(btn.dataset.mode);
       });
     }
+
+    // TEMP (dev): jump to the last photo of the walk
+    document.getElementById("devLastMedia")?.addEventListener("click", () => {
+      app?.goToLastMedia?.();
+      syncExplorePlayUi(false);
+    });
 
     explorePlay.addEventListener("click", () => {
       const next = explorePlay.getAttribute("aria-pressed") !== "true";

@@ -38,6 +38,8 @@ const CLOUD_NEAR_SCALE = 1;
 const CLOUD_FAR_SPREAD = 1.45;
 // Min explore gap between consecutive media (timeline padding — not path-based)
 const MIN_EXPLORE_GAP_M = 10;
+// A detached media (data detachM) keeps a longer explore gap before it
+const DETACH_EXPLORE_GAP_M = 25;
 // Light GPS denoise only — keep real bends, just kill harsh spikes
 const PATH_SMOOTH_PASSES = 1;
 const PATH_SMOOTH_RADIUS = 2;
@@ -605,7 +607,11 @@ export function initPath3D({
 
   // Place each media at time-accurate path distance, offset off-center
   const placements = media.map((item, index) => {
-    const realDist = path.distanceAtTime(item.time);
+    // detachM (data): place this media past its time position — the closing
+    // photo comes after a longer explore gap (DETACH_EXPLORE_GAP_M)
+    const detach = Math.max(0, Number(item.detachM) || 0);
+    const timeDist = path.distanceAtTime(item.time);
+    const realDist = timeDist + detach;
     const naturalDist = realDist * PATH_COMPRESS + START_LEAD_M;
     writeFrame(realDist, _pPos, _pTan, _pSide, _pUp, "raw");
     const h1 = hash01(item.id + ":side");
@@ -623,7 +629,8 @@ export function initPath3D({
   {
     let cursor = -Infinity;
     for (const p of placements) {
-      const padded = Math.max(p.naturalDist, cursor + MIN_EXPLORE_GAP_M);
+      const gap = Number(p.item.detachM) > 0 ? DETACH_EXPLORE_GAP_M : MIN_EXPLORE_GAP_M;
+      const padded = Math.max(p.naturalDist, cursor + gap);
       p.dist = padded;
       cursor = padded;
     }
@@ -637,12 +644,16 @@ export function initPath3D({
   }
 
   const lastPlacementDist = placements[placements.length - 1]?.dist ?? 0;
+  // "extra" media (data) don't count: the closing photo reads 185/184
+  const countedTotal = placements.filter((p) => !p.item.extra).length;
   const exploreTotal = Math.max(
     path.total * PATH_COMPRESS + START_LEAD_M,
     lastPlacementDist + START_AHEAD_M + 8
   );
-  // Show the closing line early in the final stretch after the last photo
-  const outroRevealDist = lastPlacementDist + (exploreTotal - lastPlacementDist) * 0.125;
+  // Closing line: right after the walker passes the last photo (half the
+  // original scroll, tuned on site — independent of the gap before it)
+  const OUTRO_AFTER_LAST_M = 0.4;
+  const outroRevealDist = lastPlacementDist + OUTRO_AFTER_LAST_M;
 
   const scene = new THREE.Scene();
   scene.background = null;
@@ -783,6 +794,20 @@ export function initPath3D({
   const _ovQuat = new THREE.Quaternion();
 
   let walkDist = 0;
+  // Smoothed wheel: steps move this target, walkDist eases toward it per frame
+  let scrollTarget = null;
+  const SCROLL_EASE_S = 0.12;
+  // Scrolling back, a photo re-enters from behind the camera: its reverse
+  // dissolve may un-dissolve at most this fast (full re-entry ≈ 1.1 s), so it
+  // no longer pops in within one wheel notch. Forward motion is untouched.
+  const REENTRY_S = 1.1;
+  let snapReentry = true; // jumps / mode changes: no re-entry animation
+  let lastLayoutMs = 0;
+  /** Any walk change that isn't a wheel scroll: stop easing, no re-entry lag */
+  function resetWalkMotion() {
+    scrollTarget = null;
+    snapReentry = true;
+  }
   let camTransition = null; // overview → explore fly-in state
   let landingIntro = null; // base→peak reveal on first load
   // Keep white veil + hide overview until the landing intro actually starts
@@ -806,6 +831,7 @@ export function initPath3D({
     const next = !!on && mode === "explore" && !camTransition;
     if (next === exploreAutoplay) return exploreAutoplay;
     if (next && walkDist >= exploreTotal - 1e-3) walkDist = 0;
+    if (next) resetWalkMotion();
     exploreAutoplay = next;
     if (next) reanchorAutoplay();
     onExploreAutoplayChange?.(exploreAutoplay);
@@ -1145,74 +1171,77 @@ export function initPath3D({
         dissolveTex?.image?.height ||
         (clamped >= 1 ? Math.max(1, Math.round(CLOUD_LONG_SIDE / clamped)) : CLOUD_LONG_SIDE);
 
-      // Overview: point-cloud only — oriented from AccelerationVector
-      const ovGroup = new THREE.Group();
-      const cloudScale = OVERVIEW_CLOUD_SCALE;
-      const planeW = PHOTO_H * clamped * cloudScale;
-      const planeH = PHOTO_H * cloudScale;
-      const disp = DISP_MAX * cloudScale * OVERVIEW_DISP_MUL;
-      let cloudMat = null;
+      // Volumetric overview — skipped for media flagged hideInOverview (data)
+      if (!item.hideInOverview) {
+        // Overview: point-cloud only — oriented from AccelerationVector
+        const ovGroup = new THREE.Group();
+        const cloudScale = OVERVIEW_CLOUD_SCALE;
+        const planeW = PHOTO_H * clamped * cloudScale;
+        const planeH = PHOTO_H * cloudScale;
+        const disp = DISP_MAX * cloudScale * OVERVIEW_DISP_MUL;
+        let cloudMat = null;
 
-      if (dissolveTex) {
-        const ovLong = OVERVIEW_CLOUD_LONG;
-        const ovW =
-          clamped >= 1 ? ovLong : Math.max(1, Math.round(ovLong * clamped));
-        const ovH =
-          clamped >= 1 ? Math.max(1, Math.round(ovLong / clamped)) : ovLong;
-        cloudMat = makeCloudMaterial(dissolveTex, clamped);
-        cloudMat.uniforms.uScale.value = (container.clientHeight || 800) * 0.5;
-        cloudMat.uniforms.uPointMul.value = POINT_MUL;
-        cloudMat.uniforms.uPlane.value.set(planeW, planeH);
-        cloudMat.uniforms.uDisp.value = disp;
-        cloudMat.uniforms.uSpread.value = CLOUD_FAR_SPREAD;
-        cloudMat.uniforms.uSize.value = (planeH / Math.max(1, ovH)) * 2.35;
-        // No distance fog in overview
-        cloudMat.uniforms.uFogNear.value = 1e5;
-        cloudMat.uniforms.uFogFar.value = 1e5 + 1;
-        cloudMat.uniforms.uWiggle.value = OVERVIEW_WIGGLE_M;
-        const cloudPts = new THREE.Points(cloudGeoFor(ovW, ovH), cloudMat);
-        cloudPts.frustumCulled = false;
-        cloudPts.renderOrder = 5;
-        ovGroup.add(cloudPts);
-        overviewCloudMats.push(cloudMat);
+        if (dissolveTex) {
+          const ovLong = OVERVIEW_CLOUD_LONG;
+          const ovW =
+            clamped >= 1 ? ovLong : Math.max(1, Math.round(ovLong * clamped));
+          const ovH =
+            clamped >= 1 ? Math.max(1, Math.round(ovLong / clamped)) : ovLong;
+          cloudMat = makeCloudMaterial(dissolveTex, clamped);
+          cloudMat.uniforms.uScale.value = (container.clientHeight || 800) * 0.5;
+          cloudMat.uniforms.uPointMul.value = POINT_MUL;
+          cloudMat.uniforms.uPlane.value.set(planeW, planeH);
+          cloudMat.uniforms.uDisp.value = disp;
+          cloudMat.uniforms.uSpread.value = CLOUD_FAR_SPREAD;
+          cloudMat.uniforms.uSize.value = (planeH / Math.max(1, ovH)) * 2.35;
+          // No distance fog in overview
+          cloudMat.uniforms.uFogNear.value = 1e5;
+          cloudMat.uniforms.uFogFar.value = 1e5 + 1;
+          cloudMat.uniforms.uWiggle.value = OVERVIEW_WIGGLE_M;
+          const cloudPts = new THREE.Points(cloudGeoFor(ovW, ovH), cloudMat);
+          cloudPts.frustumCulled = false;
+          cloudPts.renderOrder = 5;
+          ovGroup.add(cloudPts);
+          overviewCloudMats.push(cloudMat);
+        }
+
+        // Invisible pick plane (same footprint as the cloud core). Material
+        // visible:false keeps it out of the draw list; raycasts still hit it.
+        const pickMat = new THREE.MeshBasicMaterial({
+          visible: false,
+          transparent: true,
+          opacity: 0,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+          fog: false,
+        });
+        const pick = new THREE.Mesh(planeGeoFor(clamped), pickMat);
+        pick.scale.setScalar(cloudScale);
+        pick.userData.item = item;
+        pick.userData.baseScale = cloudScale;
+        ovGroup.add(pick);
+
+        ovGroup.position.copy(placement.overviewWorld);
+        _ovLook.copy(placement.overviewWorld).sub(overviewCenter);
+        if (_ovLook.lengthSq() < 1e-6) _ovLook.set(0, 0, 1);
+        else _ovLook.normalize();
+        quatFromAccel(item.accel || DEFAULT_ACCEL, _ovLook, _ovQuat);
+        ovGroup.quaternion.copy(_ovQuat);
+
+        // Hidden until landing reveal owns visibility (avoids preload flash)
+        if (pendingLandingIntro) ovGroup.visible = false;
+        scene.add(ovGroup);
+        overviewBillboards.push(pick);
+        overviewNodes.push({
+          group: ovGroup,
+          pick,
+          cloudMat,
+          placement,
+          homeQuat: _ovQuat.clone(),
+          ele: item.ele ?? 0,
+          jitter: hash01(item.id + ":intro"),
+        });
       }
-
-      // Invisible pick plane (same footprint as the cloud core). Material
-      // visible:false keeps it out of the draw list; raycasts still hit it.
-      const pickMat = new THREE.MeshBasicMaterial({
-        visible: false,
-        transparent: true,
-        opacity: 0,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-        fog: false,
-      });
-      const pick = new THREE.Mesh(planeGeoFor(clamped), pickMat);
-      pick.scale.setScalar(cloudScale);
-      pick.userData.item = item;
-      pick.userData.baseScale = cloudScale;
-      ovGroup.add(pick);
-
-      ovGroup.position.copy(placement.overviewWorld);
-      _ovLook.copy(placement.overviewWorld).sub(overviewCenter);
-      if (_ovLook.lengthSq() < 1e-6) _ovLook.set(0, 0, 1);
-      else _ovLook.normalize();
-      quatFromAccel(item.accel || DEFAULT_ACCEL, _ovLook, _ovQuat);
-      ovGroup.quaternion.copy(_ovQuat);
-
-      // Hidden until landing reveal owns visibility (avoids preload flash)
-      if (pendingLandingIntro) ovGroup.visible = false;
-      scene.add(ovGroup);
-      overviewBillboards.push(pick);
-      overviewNodes.push({
-        group: ovGroup,
-        pick,
-        cloudMat,
-        placement,
-        homeQuat: _ovQuat.clone(),
-        ele: item.ele ?? 0,
-        jitter: hash01(item.id + ":intro"),
-      });
 
       const group = new THREE.Group();
       // Map is swapped to the streamed photo / video when they are ready
@@ -1257,10 +1286,12 @@ export function initPath3D({
     for (const n of exploreNodes) if (n.isVideo) videoNodes.push(n);
   }
 
+  // Media drawn in the volumetric overview (data hideInOverview opts out)
+  const overviewPlacements = placements.filter((p) => !p.item.hideInOverview);
   // Inflate path spacing for the volumetric mass, then frame the camera on it
   const overviewRawCenter = new THREE.Vector3();
   {
-    const rawBox = new THREE.Box3().setFromPoints(placements.map((p) => p.world));
+    const rawBox = new THREE.Box3().setFromPoints(overviewPlacements.map((p) => p.world));
     rawBox.getCenter(overviewRawCenter);
     for (const p of placements) {
       p.overviewWorld = p.world
@@ -1271,7 +1302,7 @@ export function initPath3D({
       p.overviewWorld.y += 2;
     }
   }
-  const box = new THREE.Box3().setFromPoints(placements.map((p) => p.overviewWorld));
+  const box = new THREE.Box3().setFromPoints(overviewPlacements.map((p) => p.overviewWorld));
   const overviewCenter = box.getCenter(new THREE.Vector3());
   // Inflate by each cloud's volume so framing includes the mist, not just anchors
   const overviewCloudRadius = Math.hypot(
@@ -1483,8 +1514,18 @@ export function initPath3D({
   function goToCheckpoint(id) {
     const p = placements.find((x) => x.item.id === id);
     if (!p) return false;
+    return jumpToWalk(checkpointArriveDist(p));
+  }
+
+  // TEMP (dev): land just before the last photo to work on the end of the walk
+  function goToLastMedia() {
+    const p = placements[placements.length - 1];
+    if (!p) return false;
+    return jumpToWalk(checkpointArriveDist(p));
+  }
+
+  function jumpToWalk(target) {
     if (mode === "explore" && !camTransition) setExploreAutoplay(false);
-    const target = checkpointArriveDist(p);
     const needed = exploreNodes.filter((n) => {
       const a = n.placement.dist - target;
       return a > -HI_LOAD_BEHIND_M && a < JUMP_READY_AHEAD_M;
@@ -1510,6 +1551,7 @@ export function initPath3D({
     if (mode !== "explore" || camTransition) setMode("explore", { animate: false });
     else setExploreAutoplay(false);
     walkDist = jump.target;
+    resetWalkMotion();
     updateExploreLayout();
     jumpProtect = null;
   }
@@ -1762,6 +1804,7 @@ export function initPath3D({
 
   function handoffToExplore(endWalk = 0) {
     walkDist = THREE.MathUtils.clamp(endWalk, 0, exploreTotal);
+    resetWalkMotion();
     for (const slot of cloudPool) slot.pts.visible = false;
     restoreOverviewNodesHome();
     for (const n of overviewNodes) n.group.visible = false;
@@ -2151,8 +2194,15 @@ export function initPath3D({
 
   let layoutStamp = 0;
   let layoutDirty = false;
+  let reentryActive = false;
   function updateExploreLayout() {
     layoutDirty = false;
+    const nowMs = performance.now();
+    const layoutDt = lastLayoutMs ? Math.min(0.1, (nowMs - lastLayoutMs) / 1000) : 0;
+    lastLayoutMs = nowMs;
+    const snap = snapReentry;
+    snapReentry = false;
+    reentryActive = false;
     // exploreNodes follow padded dist order — scan forward, no full sort
     const stamp = ++layoutStamp;
     let aheadCount = 0;
@@ -2190,6 +2240,8 @@ export function initPath3D({
       const show = mode === "explore" && node.visStamp === stamp;
 
       if (!show || ahead <= 0 || ahead >= SHOW_AHEAD_M) {
+        // Behind the camera = fully dissolved; far ahead = nothing to undo
+        node.exitS = ahead <= 0 ? 1 : 0;
         node.group.visible = false;
         node.hiPlane.visible = false;
         node.hiPlane.scale.setScalar(1);
@@ -2295,6 +2347,21 @@ export function initPath3D({
         grow = 1 + exitU * 2.4;
       }
 
+      // Re-entry pacing (scrolling back): the dissolve may follow the geometry
+      // up instantly (forward), but comes back down at most 1/REENTRY_S per s.
+      const exitTarget = dissolving ? 1 - planeOpacity : 0;
+      const exitPrev = node.exitS ?? exitTarget;
+      node.exitS =
+        snap || exitTarget >= exitPrev
+          ? exitTarget
+          : Math.max(exitTarget, exitPrev - layoutDt / REENTRY_S);
+      if (node.exitS > exitTarget + 1e-4) {
+        reentryActive = true;
+        dissolving = true;
+        grow = 1 + node.exitS * 2.4;
+        planeOpacity = Math.min(planeOpacity, 1 - node.exitS);
+      }
+
       // Crossfade: keep mist until the real image is mostly opaque
       const showPlane = planeOpacity > 0.02;
       const showCloud = !!node.dissolveTex && reformT < 0.995 && planeOpacity < 0.92;
@@ -2344,7 +2411,7 @@ export function initPath3D({
       walkDist,
       formedItem: formed?.item ?? null,
       formedIndex: formed?.index ?? -1,
-      total: placements.length,
+      total: countedTotal,
       atEnd: walkDist >= outroRevealDist,
     });
 
@@ -2394,6 +2461,7 @@ export function initPath3D({
     if (mode === "explore") {
       // Farthest POV — start of lead-in, everything ahead
       walkDist = 0;
+      resetWalkMotion();
       for (const slot of cloudPool) slot.pts.visible = false;
       startHiPrefetch();
       applyExploreCamera();
@@ -2404,14 +2472,14 @@ export function initPath3D({
     return mode;
   }
 
-  // Scroll moves images. Trackpads fire several wheel events per frame: the
-  // steps accumulate here and the layout runs once, in this frame's tick.
+  // Scroll moves images. Steps accumulate into scrollTarget (trackpads fire
+  // several per frame); tick eases walkDist toward it and lays out once.
   function onWheel(e) {
     if (mode !== "explore" || camTransition) return;
     e.preventDefault();
     if (exploreAutoplay) setExploreAutoplay(false);
     const step = Math.sign(e.deltaY) * Math.min(4.5, Math.abs(e.deltaY) * 0.02);
-    walkDist = THREE.MathUtils.clamp(walkDist + step, 0, exploreTotal);
+    scrollTarget = THREE.MathUtils.clamp((scrollTarget ?? walkDist) + step, 0, exploreTotal);
     layoutDirty = true;
   }
   renderer.domElement.addEventListener("wheel", onWheel, { passive: false });
@@ -2536,8 +2604,12 @@ export function initPath3D({
 
   const cloudClock = new THREE.Clock();
   let raf = 0;
+  let lastTickMs = 0;
   function tick() {
     raf = requestAnimationFrame(tick);
+    const tickMs = performance.now();
+    const frameDt = lastTickMs ? Math.min(0.1, (tickMs - lastTickMs) / 1000) : 1 / 60;
+    lastTickMs = tickMs;
     processPendingPointer();
     if (pendingJump && (pendingJumpReady() || performance.now() >= pendingJump.deadline)) {
       applyPendingJump();
@@ -2581,8 +2653,17 @@ export function initPath3D({
         }
         updateExploreLayout();
         if (walkDist >= exploreTotal - 1e-3) setExploreAutoplay(false);
-      } else if (layoutDirty) {
-        updateExploreLayout();
+      } else {
+        if (scrollTarget != null) {
+          const dt = frameDt;
+          walkDist += (scrollTarget - walkDist) * (1 - Math.exp(-dt / SCROLL_EASE_S));
+          if (Math.abs(scrollTarget - walkDist) < 0.005) {
+            walkDist = scrollTarget;
+            scrollTarget = null;
+          }
+          layoutDirty = true;
+        }
+        if (layoutDirty || reentryActive) updateExploreLayout();
       }
     }
     tickHiStreaming();
@@ -2691,6 +2772,7 @@ export function initPath3D({
     getExploreAutoplaySpeed: () => autoplaySpeedMul,
     getCheckpoints,
     goToCheckpoint,
+    goToLastMedia, // TEMP (dev)
     setUnlockedCheckpoints,
     setNightMode(on) {
       nightMode = !!on;

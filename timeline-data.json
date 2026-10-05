@@ -8,8 +8,8 @@
   "eleMin": 2150.9,
   "eleMax": 2739.9,
   "trackPointCount": 644,
-  "mediaCount": 184,
-  "photoCount": 175,
+  "mediaCount": 185,
+  "photoCount": 176,
   "videoCount": 9,
   "track": [
     {
@@ -8625,6 +8625,29 @@
         0.004117,
         0.076247
       ]
+    },
+    {
+      "id": "IMG_0001",
+      "file": "IMG_0001.jpeg",
+      "src": "assets/web/img/lg/IMG_0001.avif",
+      "md": "assets/web/img/md/IMG_0001.avif",
+      "thumb": "assets/web/img/sm/IMG_0001.avif",
+      "width": 2560,
+      "height": 1701,
+      "original": "assets/foto/IMG_0001.jpeg",
+      "pc": "assets/web/img/pc/IMG_0001.avif",
+      "pcW": 324,
+      "pcH": 215,
+      "kind": "photo",
+      "timeSource": "manual",
+      "time": "2026-10-03T16:05:20Z",
+      "timeLocal": "00:00:00",
+      "lat": 46.527677,
+      "lon": 12.00921,
+      "ele": 2739.9,
+      "extra": true,
+      "detachM": 110,
+      "hideInOverview": true
     }
   ],
   "audio": [
