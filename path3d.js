@@ -52,7 +52,8 @@ const AUTOPLAY_MAX_CLOUDS = 6;
 // Overview volumetric mass
 const OVERVIEW_SPREAD = 1.15; // +15% spacing between images
 const OVERVIEW_CLOUD_SCALE = 9.5;
-const OVERVIEW_CLOUD_LONG = 80; // sparse grid — all media visible at once
+// Sparse grid — all media visible at once. 96 (was 80) → +44% points
+const OVERVIEW_CLOUD_LONG = 96;
 const OVERVIEW_DISP_MUL = 2; // +100% displacement vs base exploded mist
 // Light live drift — scaled with overview cloud size (explore uses ~0.055 m)
 const OVERVIEW_WIGGLE_M = 0.32;
@@ -828,7 +829,7 @@ export function initPath3D({
   }
 
   function setExploreAutoplay(on) {
-    const next = !!on && mode === "explore" && !camTransition;
+    const next = !!on && mode === "explore" && !camTransition && !winding;
     if (next === exploreAutoplay) return exploreAutoplay;
     if (next && walkDist >= exploreTotal - 1e-3) walkDist = 0;
     if (next) resetWalkMotion();
@@ -887,16 +888,48 @@ export function initPath3D({
     node.videoPlaying = false;
   }
 
-  function playNodeVideo(node) {
+  // Explore videos play with their sound. Volume follows the card opacity, so
+  // the audio fades with the image. Lightbox open / page hidden suspend them.
+  const mediaSuspend = new Set();
+  function playNodeVideo(node, level = 1) {
     const v = node.video;
-    if (!v || node.videoPlaying) return;
+    if (!v || mediaSuspend.size) return;
+    const vol = THREE.MathUtils.clamp(level, 0, 1);
+    if (Math.abs(v.volume - vol) > 0.01) v.volume = vol;
+    if (node.videoPlaying) return;
     // Flag first so play() isn't re-issued every frame while it is pending
     node.videoPlaying = true;
+    v.muted = false;
     const p = v.play();
     if (p && typeof p.catch === "function") {
-      p.catch(() => {
-        if (node.video === v && v.paused) node.videoPlaying = false;
+      p.catch((err) => {
+        if (node.video !== v) return;
+        if (err?.name === "NotAllowedError" && !v.muted) {
+          // Browser blocks sound without a prior click: play muted instead
+          v.muted = true;
+          v.play().catch(() => {
+            if (node.video === v && v.paused) node.videoPlaying = false;
+          });
+          return;
+        }
+        if (v.paused) node.videoPlaying = false;
       });
+    }
+  }
+
+  function pauseNodeVideo(node) {
+    const v = node.video;
+    if (v && !v.paused) v.pause();
+    node.videoPlaying = false;
+  }
+
+  /** reason: "lightbox" | "hidden" … videos stay paused while any is set */
+  function setMediaSuspended(reason, on) {
+    if (on) {
+      mediaSuspend.add(reason);
+      for (const n of videoNodes) pauseNodeVideo(n);
+    } else if (mediaSuspend.delete(reason) && !mediaSuspend.size) {
+      layoutDirty = true; // the layout restarts the formed video
     }
   }
 
@@ -984,6 +1017,13 @@ export function initPath3D({
       }
       node.hiTex = tex;
       node.hiState = HI_READY;
+      // Once on the GPU the decoded copy (~7.7 MB per photo) is dropped
+      if (typeof ImageBitmap !== "undefined" && tex.image instanceof ImageBitmap) {
+        tex.onUpdate = () => {
+          tex.onUpdate = null;
+          tex.image.close();
+        };
+      }
       hiUploadQueue.push(node);
       if (node.fallbackTex) {
         const mat = node.hiPlane.material;
@@ -1007,6 +1047,7 @@ export function initPath3D({
     node.video = video;
     node.videoTex = tex;
     node.videoPlaying = false;
+    layoutDirty = true; // a formed card already on screen starts its video now
     try {
       video.load();
     } catch {
@@ -1116,11 +1157,16 @@ export function initPath3D({
   // Warm the HTTP cache with the remaining photos/posters in path order once
   // the visitor starts exploring, so later decodes never wait on the network.
   let prefetchStarted = false;
+  const prefetchWaiters = [];
   function startHiPrefetch() {
     if (prefetchStarted || typeof fetch !== "function") return;
     prefetchStarted = true;
     let i = 0;
     const next = () => {
+      if (document.hidden) {
+        prefetchWaiters.push(next); // resumes when the page is visible again
+        return undefined;
+      }
       while (i < exploreNodes.length) {
         const node = exploreNodes[i++];
         if (node.hiState !== HI_IDLE) continue; // already streamed
@@ -1514,18 +1560,111 @@ export function initPath3D({
   function goToCheckpoint(id) {
     const p = placements.find((x) => x.item.id === id);
     if (!p) return false;
-    return jumpToWalk(checkpointArriveDist(p));
+    return jumpToWalk(jumpArriveDist(p));
   }
 
-  // TEMP (dev): land just before the last photo to work on the end of the walk
+  // TEMP (dev): land on the last photo to work on the end of the walk
   function goToLastMedia() {
     const p = placements[placements.length - 1];
     if (!p) return false;
-    return jumpToWalk(checkpointArriveDist(p));
+    return jumpToWalk(jumpArriveDist(p));
+  }
+
+  // Where a jump lands: the card sits halfway through its full-opacity hold
+  // (formed, no mist, not yet dissolving). Solved with the layout's own math
+  // (cardPose) because path bends and lateral offsets make a fixed lead in
+  // metres land anywhere from "still mist" to "half dissolved".
+  const ARRIVE_COVER = REFORM_SCREEN_FRAC + EXIT_HOLD_SPAN * 0.5;
+  const _arPos = new THREE.Vector3();
+  const _arTan = new THREE.Vector3();
+  const _arSide = new THREE.Vector3();
+  const _arUp = new THREE.Vector3();
+  const _arCam = new THREE.Vector3();
+  const _arPose = {};
+  function jumpArriveDist(p) {
+    const node = exploreNodes.find((n) => n.placement === p);
+    if (!node) return checkpointArriveDist(p);
+    const cover = (walk) => {
+      eyeAt(walk, false, _arPos, _arTan, _arSide, _arUp, _arCam);
+      return cardPose(node, false, _arTan, _arSide, _arUp, _arCam, _arPose).coverFrac;
+    };
+    // Step back from the card until it reads smaller than the target, then
+    // refine. Nearest-first matters near the summit, where the trail loops
+    // around the hut and the card is close again from 60 m further back.
+    const STEP = 0.25;
+    let hi = Math.max(0, p.dist - 0.5);
+    let lo = hi;
+    const floor = Math.max(0, p.dist - 60);
+    while (lo > floor && cover(lo) >= ARRIVE_COVER) {
+      hi = lo;
+      lo = Math.max(floor, lo - STEP);
+    }
+    if (cover(lo) >= ARRIVE_COVER) return lo;
+    for (let i = 0; i < 20; i++) {
+      const mid = (lo + hi) * 0.5;
+      if (cover(mid) < ARRIVE_COVER) lo = mid;
+      else hi = mid;
+    }
+    return THREE.MathUtils.clamp((lo + hi) * 0.5, 0, exploreTotal);
+  }
+
+  // —— "Winding": inside explore a jump fast-forwards / rewinds along the path
+  // instead of cutting. Duration grows gently with distance; FOV widens with
+  // speed (warp feel) and settles back exactly on arrival.
+  const WIND_MIN_S = 0.9;
+  const WIND_MAX_S = 2.1;
+  const WIND_FOV_KICK_DEG = 14;
+  let winding = null;
+  function startWinding(target) {
+    const from = walkDist;
+    const dist = Math.abs(target - from);
+    if (dist < 0.05) {
+      walkDist = target;
+      resetWalkMotion();
+      updateExploreLayout();
+      return;
+    }
+    winding = {
+      from,
+      to: target,
+      t0: performance.now(),
+      dur: THREE.MathUtils.clamp(0.75 + dist / 1600, WIND_MIN_S, WIND_MAX_S) * 1000,
+    };
+    resetWalkMotion();
+  }
+  function tickWinding(now) {
+    const w = winding;
+    const u = THREE.MathUtils.clamp((now - w.t0) / w.dur, 0, 1);
+    walkDist = w.from + (w.to - w.from) * easeInOutQuint(u);
+    const kick = Math.sin(Math.PI * u);
+    camera.fov = EXPLORE_FOV_DEG + WIND_FOV_KICK_DEG * kick * kick;
+    camera.updateProjectionMatrix();
+    snapReentry = true; // no re-entry pacing while warping
+    if (u >= 1) finishWinding();
+    else updateExploreLayout();
+  }
+  function finishWinding() {
+    if (!winding) return;
+    walkDist = winding.to;
+    winding = null;
+    camera.fov = EXPLORE_FOV_DEG;
+    camera.updateProjectionMatrix();
+    resetWalkMotion();
+    jumpProtect = null;
+    if (mode === "explore") updateExploreLayout();
+  }
+  /** Abort mid-flight (mode change): stay where we are, restore the lens */
+  function cancelWinding() {
+    if (!winding) return;
+    winding = null;
+    camera.fov = EXPLORE_FOV_DEG;
+    camera.updateProjectionMatrix();
+    jumpProtect = null;
   }
 
   function jumpToWalk(target) {
-    if (mode === "explore" && !camTransition) setExploreAutoplay(false);
+    const inExplore = mode === "explore" && !camTransition;
+    if (inExplore) setExploreAutoplay(false);
     const needed = exploreNodes.filter((n) => {
       const a = n.placement.dist - target;
       return a > -HI_LOAD_BEHIND_M && a < JUMP_READY_AHEAD_M;
@@ -1534,8 +1673,15 @@ export function initPath3D({
     const near = (n) => Math.abs(n.placement.dist - target);
     for (const n of needed.slice().sort((a, b) => near(a) - near(b))) requestHi(n);
     jumpProtect = new Set(needed);
-    pendingJump = { target, needed, deadline: performance.now() + JUMP_WAIT_MAX_MS };
     startHiPrefetch();
+    if (inExplore) {
+      // The flight itself covers the decode time of the destination photos
+      cancelPendingJump();
+      jumpProtect = new Set(needed);
+      startWinding(target);
+      return true;
+    }
+    pendingJump = { target, needed, deadline: performance.now() + JUMP_WAIT_MAX_MS };
     if (pendingJumpReady()) applyPendingJump();
     return true;
   }
@@ -2076,7 +2222,9 @@ export function initPath3D({
     // Orbit target below the mass → mass reads above the viewport center
     controls.target.copy(overviewSphere.center).addScaledVector(_ovViewUp, -screenShift);
     camera.position.copy(controls.target).addScaledVector(overviewCamDir, dist);
-    controls.minDistance = Math.max(8, dist * 0.25);
+    // Closest zoom. /1.04 → ~10% more on-screen magnification than before:
+    // perspective amplifies the closest clouds, so the distance moves less
+    controls.minDistance = Math.max(8, (dist * 0.25) / 1.04);
     controls.maxDistance = dist * 5;
     controls.update();
   }
@@ -2192,6 +2340,59 @@ export function initPath3D({
     return t * t * (3 - 2 * t);
   }
 
+  /** Eye frame + camera world point for a walk position (scroll curve or autoplay ribbon) */
+  function eyeAt(walk, autoplay, pos, tan, side, up, camOut) {
+    const realEye = exploreToReal(walk);
+    if (autoplay) sampleAutoplayLut(realEye, pos, tan, side, up);
+    else writeFrame(realEye, pos, tan, side, up, "explore");
+    const leadPad = Math.max(0, START_LEAD_M - walk);
+    camOut
+      .copy(pos)
+      .addScaledVector(_worldUp, EYE_H)
+      .addScaledVector(tan, -leadPad / Math.max(1e-6, PATH_COMPRESS));
+  }
+
+  const _pose = {};
+  /**
+   * Camera-space pose and screen cover of a card, seen from an eye frame.
+   * Shared by the layout and by the checkpoint arrival search.
+   */
+  function cardPose(node, autoplay, eyeTan, eyeSide, eyeUp, camW, out) {
+    const frame = autoplay ? node.placement.autoplayFrame : node.placement.exploreFrame;
+    const { w: planeW, h: planeH } = planeSizeForAspect(node.aspect);
+
+    // Center as the mist reforms into a readable card
+    _photoWorld.copy(frame.pos).addScaledVector(_worldUp, EYE_H * 0.9);
+    _delta.copy(_photoWorld).sub(camW).multiplyScalar(PATH_COMPRESS);
+    const centerDepth = Math.max(0.25, -_delta.dot(eyeTan));
+    const centerCover = screenCoverFrac(planeW, planeH, centerDepth);
+    let centerT = 0;
+    if (centerCover > REFORM_SCREEN_FRAC * 0.55) {
+      const u = THREE.MathUtils.clamp(
+        (centerCover - REFORM_SCREEN_FRAC * 0.55) / Math.max(0.05, REFORM_SCREEN_FRAC * 0.45),
+        0,
+        1
+      );
+      centerT = u * u * (3 - 2 * u);
+    }
+    const lateralNow = node.placement.lateral * (1 - centerT);
+
+    _photoWorld
+      .copy(frame.pos)
+      .addScaledVector(frame.side, lateralNow)
+      .addScaledVector(_worldUp, EYE_H * 0.9);
+    _delta.copy(_photoWorld).sub(camW).multiplyScalar(PATH_COMPRESS);
+    out.planeW = planeW;
+    out.planeH = planeH;
+    out.lx = _delta.dot(eyeSide);
+    out.ly = _delta.dot(eyeUp) * 0.85;
+    out.lz = -_delta.dot(eyeTan);
+    out.yawNow = node.placement.yawJitter * (1 - centerT);
+    out.viewDepth = Math.max(0.15, -out.lz);
+    out.coverFrac = screenCoverFrac(planeW, planeH, out.viewDepth);
+    return out;
+  }
+
   let layoutStamp = 0;
   let layoutDirty = false;
   let reentryActive = false;
@@ -2216,14 +2417,7 @@ export function initPath3D({
     }
 
     // Camera: autoplay uses LUT on the ultra-smooth ribbon; scroll uses explore curve
-    const realEye = exploreToReal(walkDist);
-    if (exploreAutoplay) sampleAutoplayLut(realEye, _eyePos, _eyeTan, _eyeSide, _eyeUp);
-    else writeFrame(realEye, _eyePos, _eyeTan, _eyeSide, _eyeUp, "explore");
-    const leadPad = Math.max(0, START_LEAD_M - walkDist);
-    _camWorld
-      .copy(_eyePos)
-      .addScaledVector(_worldUp, EYE_H)
-      .addScaledVector(_eyeTan, -leadPad / Math.max(1e-6, PATH_COMPRESS));
+    eyeAt(walkDist, exploreAutoplay, _eyePos, _eyeTan, _eyeSide, _eyeUp, _camWorld);
 
     // Keep a fixed camera; place cards in camera-local space (stable scroll/autoplay)
     camera.position.set(0, EYE_H, 0);
@@ -2250,42 +2444,12 @@ export function initPath3D({
         continue;
       }
 
-      // Precomputed frame at padded explore slot
-      const frame = exploreAutoplay ? node.placement.autoplayFrame : node.placement.exploreFrame;
-      applyCapturedFrame(frame, _pPos, _pTan, _pSide, _pUp);
-
-      const { w: planeW, h: planeH } = planeSizeForAspect(node.aspect);
+      // Precomputed frame at padded explore slot → camera-space pose + cover
+      const pose = cardPose(node, exploreAutoplay, _eyeTan, _eyeSide, _eyeUp, _camWorld, _pose);
+      const { planeW, planeH, lx, ly, lz, yawNow } = pose;
       // Geometry is PHOTO_H×aspect — scale mesh to the viewport-equalized footprint
       const baseScaleX = planeW / Math.max(1e-6, PHOTO_H * node.aspect);
       const baseScaleY = planeH / Math.max(1e-6, PHOTO_H);
-
-      // Center as the mist reforms into a readable card
-      _photoWorld.copy(_pPos).addScaledVector(_worldUp, EYE_H * 0.9);
-      _delta.copy(_photoWorld).sub(_camWorld).multiplyScalar(PATH_COMPRESS);
-      const centerDepth = Math.max(0.25, -_delta.dot(_eyeTan));
-      const centerCover = screenCoverFrac(planeW, planeH, centerDepth);
-      let centerT = 0;
-      if (centerCover > REFORM_SCREEN_FRAC * 0.55) {
-        const u = THREE.MathUtils.clamp(
-          (centerCover - REFORM_SCREEN_FRAC * 0.55) /
-            Math.max(0.05, REFORM_SCREEN_FRAC * 0.45),
-          0,
-          1
-        );
-        centerT = u * u * (3 - 2 * u);
-      }
-      const lateralNow = node.placement.lateral * (1 - centerT);
-      const yawNow = node.placement.yawJitter * (1 - centerT);
-
-      _photoWorld
-        .copy(_pPos)
-        .addScaledVector(_pSide, lateralNow)
-        .addScaledVector(_worldUp, EYE_H * 0.9);
-
-      _delta.copy(_photoWorld).sub(_camWorld).multiplyScalar(PATH_COMPRESS);
-      const lx = _delta.dot(_eyeSide);
-      const ly = _delta.dot(_eyeUp) * 0.85;
-      const lz = -_delta.dot(_eyeTan);
 
       // Path fold this frame only — hide, but scroll-back can show it again
       if (lz > -0.12) {
@@ -2301,8 +2465,8 @@ export function initPath3D({
       node.group.rotation.set(0, faceYaw * 0.25 + yawNow, 0);
       node.group.renderOrder = Math.round(10 + Math.max(0, 200 - ahead));
 
-      const viewDepth = Math.max(0.15, -lz);
-      const coverFrac = screenCoverFrac(planeW, planeH, viewDepth);
+      const viewDepth = pose.viewDepth;
+      const coverFrac = pose.coverFrac;
       const reformT = reformAmount(coverFrac);
       // Fog opacity (0 far/fogged → 1 clear). Disp peaks at full opacity, then
       // collapses to 0 as the image reforms — driven by camera distance/cover.
@@ -2363,7 +2527,8 @@ export function initPath3D({
       }
 
       // Crossfade: keep mist until the real image is mostly opaque
-      const showPlane = planeOpacity > 0.02;
+      // Mid-flight, only photos already decoded flash by (no low-res stand-ins)
+      const showPlane = planeOpacity > 0.02 && (!winding || node.hiState === HI_READY);
       const showCloud = !!node.dissolveTex && reformT < 0.995 && planeOpacity < 0.92;
 
       if (showCloud) {
@@ -2388,7 +2553,7 @@ export function initPath3D({
         node.hiPlane.material.depthWrite = planeOpacity > 0.9;
         node.hiPlane.renderOrder = order;
         if (node.isVideo) {
-          if (planeOpacity > 0.55 && ahead >= 0.35 && grow <= 3.1) playNodeVideo(node);
+          if (planeOpacity > 0.55 && ahead >= 0.35 && grow <= 3.1 && !winding) playNodeVideo(node, planeOpacity);
           else if (dissolving || planeOpacity < 0.4) stopNodeVideo(node);
         }
         // Only cull when truly past the card — not during fade-in (opacity near 0)
@@ -2409,8 +2574,9 @@ export function initPath3D({
 
     onExploreProgress?.({
       walkDist,
-      formedItem: formed?.item ?? null,
-      formedIndex: formed?.index ?? -1,
+      // Mid-flight the image info stays hidden (it would flicker through ids)
+      formedItem: winding ? null : (formed?.item ?? null),
+      formedIndex: winding ? -1 : (formed?.index ?? -1),
       total: countedTotal,
       atEnd: walkDist >= outroRevealDist,
     });
@@ -2432,12 +2598,14 @@ export function initPath3D({
       }
     }
 
-    updateHiStreaming(walkDist);
+    // While winding, decode around the destination, not the photos flashing by
+    updateHiStreaming(winding ? winding.to : walkDist);
   }
 
   function setMode(next, { animate = true } = {}) {
     const target = next === "explore" ? "explore" : "overview";
     cancelPendingJump();
+    cancelWinding();
     setHover(null);
     // Only abort the landing reveal when leaving overview (e.g. Explore CTA)
     if (landingIntro && target !== "overview") finishLandingIntro();
@@ -2477,6 +2645,7 @@ export function initPath3D({
   function onWheel(e) {
     if (mode !== "explore" || camTransition) return;
     e.preventDefault();
+    if (winding) return; // the flight owns the walk until it lands
     if (exploreAutoplay) setExploreAutoplay(false);
     const step = Math.sign(e.deltaY) * Math.min(4.5, Math.abs(e.deltaY) * 0.02);
     scrollTarget = THREE.MathUtils.clamp((scrollTarget ?? walkDist) + step, 0, exploreTotal);
@@ -2573,6 +2742,31 @@ export function initPath3D({
     onSelect?.(hover.userData.item);
   }
 
+  // Page in the background: silence and free the videos (decoders + buffers),
+  // pause the prefetch. A light background tab is far less likely to be
+  // discarded by the browser — which is what reloaded the page on return.
+  function onVisibilityChange() {
+    if (document.hidden) {
+      setMediaSuspended("hidden", true);
+      for (const n of videoNodes) releaseVideo(n);
+      return;
+    }
+    setMediaSuspended("hidden", false);
+    streamDirty = true; // re-creates the videos near the walker
+    layoutDirty = true;
+    for (const resume of prefetchWaiters.splice(0)) resume();
+  }
+  document.addEventListener("visibilitychange", onVisibilityChange);
+
+  // GPU context restored: photos dropped their CPU copy after upload, so they
+  // are released and streamed in again
+  function onContextRestored() {
+    for (const n of exploreNodes) if (n.hiState !== HI_IDLE || n.fallbackTex || n.video) releaseHi(n);
+    streamDirty = true;
+    layoutDirty = true;
+  }
+  renderer.domElement.addEventListener("webglcontextrestored", onContextRestored);
+
   renderer.domElement.addEventListener("pointermove", onPointerMove);
   renderer.domElement.addEventListener("pointerdown", onPointerDown);
   renderer.domElement.addEventListener("pointerleave", onPointerLeave);
@@ -2631,7 +2825,9 @@ export function initPath3D({
         if (!slot.pts.visible) continue;
         slot.mat.uniforms.uTime.value = t;
       }
-      if (exploreAutoplay) {
+      if (winding) {
+        tickWinding(performance.now());
+      } else if (exploreAutoplay) {
         const now = performance.now();
         const dt = Math.min(1 / 30, Math.max(0, (now - autoplayLastMs) / 1000));
         autoplayLastMs = now;
@@ -2729,7 +2925,9 @@ export function initPath3D({
       .filter((n) => n.group.visible)
       .slice(0, 6)
       .map((n) => ({
+        id: n.placement.item.id,
         ahead: +(n.placement.dist - walkDist).toFixed(2),
+        op: n.hiPlane.visible ? +n.hiPlane.material.opacity.toFixed(3) : 0,
         pos: n.group.position.toArray().map((v) => +v.toFixed(2)),
       }));
     const clouds = cloudPool
@@ -2774,6 +2972,7 @@ export function initPath3D({
     goToCheckpoint,
     goToLastMedia, // TEMP (dev)
     setUnlockedCheckpoints,
+    setMediaSuspended,
     setNightMode(on) {
       nightMode = !!on;
       applyBackground();
@@ -2795,6 +2994,8 @@ export function initPath3D({
       el.removeEventListener("pointerdown", onPointerDown);
       el.removeEventListener("pointerleave", onPointerLeave);
       el.removeEventListener("click", onClick);
+      el.removeEventListener("webglcontextrestored", onContextRestored);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       for (const n of exploreNodes) releaseHi(n);
       controls.dispose();
       renderer.dispose();
