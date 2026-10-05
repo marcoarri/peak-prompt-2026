@@ -1,0 +1,46 @@
+{
+  "_readme": [
+    "Vocabolario per la loading screen: frasi casuali di 3 parole (1 noun, 1 verb, 1 adjective/adverb). Tutto minuscolo.",
+    "Verbi tutti intransitivi: la frase sta in piedi senza complemento oggetto.",
+    "Accordo soggetto-verbo: se il noun ha number 'singular' usa verb.singular (es. 'memory breathes'); se 'plural' usa verb.plural (es. 'layers breathe').",
+    "Pattern A: adjective + noun + verb  -> 'cold memory falls', 'nervous users climb'",
+    "Pattern B: noun + verb + adverb     -> 'memory falls coldly', 'users climb nervously'",
+    "Scegli casualmente noun, verb, modifier e pattern; non usare articoli né punteggiatura."
+  ],
+  "nouns": [
+    { "word": "memory",      "number": "singular" },
+    { "word": "knowledge",   "number": "singular" },
+    { "word": "emptiness",   "number": "singular" },
+    { "word": "loneliness",  "number": "singular" },
+    { "word": "archives",    "number": "plural" },
+    { "word": "traces",      "number": "plural" },
+    { "word": "layers",      "number": "plural" },
+    { "word": "users",       "number": "plural" },
+    { "word": "clouds",      "number": "plural" },
+    { "word": "predictions", "number": "plural" }
+  ],
+  "verbs": [
+    { "base": "breathe",  "singular": "breathes",  "plural": "breathe" },
+    { "base": "climb",    "singular": "climbs",    "plural": "climb" },
+    { "base": "fall",     "singular": "falls",     "plural": "fall" },
+    { "base": "listen",   "singular": "listens",   "plural": "listen" },
+    { "base": "remember", "singular": "remembers", "plural": "remember" },
+    { "base": "observe",  "singular": "observes",  "plural": "observe" },
+    { "base": "dream",    "singular": "dreams",    "plural": "dream" },
+    { "base": "descend",  "singular": "descends",  "plural": "descend" },
+    { "base": "arrive",   "singular": "arrives",   "plural": "arrive" },
+    { "base": "succumb",  "singular": "succumbs",  "plural": "succumb" }
+  ],
+  "modifiers": [
+    { "adjective": "precise",     "adverb": "precisely" },
+    { "adjective": "artificial",  "adverb": "artificially" },
+    { "adjective": "predictable", "adverb": "predictably" },
+    { "adjective": "immediate",   "adverb": "immediately" },
+    { "adjective": "meticulous",  "adverb": "meticulously" },
+    { "adjective": "inquisitive", "adverb": "inquisitively" },
+    { "adjective": "cold",        "adverb": "coldly" },
+    { "adjective": "nervous",     "adverb": "nervously" },
+    { "adjective": "frantic",     "adverb": "frantically" },
+    { "adjective": "lazy",        "adverb": "lazily" }
+  ]
+}

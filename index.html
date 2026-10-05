@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <title>Peak Prompt</title>
   <link rel="icon" href="data:," />
+  <!-- Loading-screen face: fetched with the page so the first phrase never swaps font -->
+  <link rel="preload" href="assets/fonts/abc-gaisyr/ABCGaisyrMono-Medium.otf" as="font" type="font/otf" crossorigin />
   <!-- Import map first: it must be known before any module (or modulepreload) loads -->
   <script type="importmap">
   {
@@ -15,7 +17,7 @@
   }
   </script>
   <!-- Fetch the 3D modules in parallel with the page instead of one after another -->
-  <link rel="modulepreload" href="./path3d.js?v=146" />
+  <link rel="modulepreload" href="./path3d.js?v=147" />
   <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js" />
   <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/controls/OrbitControls.js" />
   <style>
@@ -68,6 +70,53 @@
       font-family: var(--font-display);
       touch-action: none;
       overscroll-behavior: none;
+    }
+
+    /* Loading screen — above everything until the landing assets are ready */
+    .loader {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      background: #fff;
+      transition: opacity 0.8s ease;
+    }
+
+    .loader.is-done {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loader-phrase {
+      position: absolute;
+      top: calc(50% - 7.98px);
+      left: calc(50% + 0.5px);
+      transform: translateX(-50%);
+      margin: 0;
+      color: #000;
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 500;
+      line-height: normal;
+      white-space: nowrap;
+    }
+
+    .loader-bar {
+      position: absolute;
+      top: calc(50% + 22.02px);
+      left: 50%;
+      width: 260px;
+      height: 1.5px;
+      transform: translateX(-50%);
+      background: #dfdfdf;
+      overflow: hidden;
+    }
+
+    .loader-bar-fill {
+      width: 100%;
+      height: 100%;
+      background: #000;
+      transform-origin: 0 50%;
+      transform: scaleX(0);
     }
 
     /* Landing chrome opacity is driven by intro progress (see module script) */
@@ -432,6 +481,223 @@
   </style>
 </head>
 <body>
+  <div class="loader" id="loader">
+    <p class="loader-phrase" id="loaderPhrase" aria-hidden="true"></p>
+    <div class="loader-bar" id="loaderBar" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div class="loader-bar-fill" id="loaderFill"></div>
+    </div>
+  </div>
+  <script>
+    // Loading screen. Runs before anything else so it paints at once.
+    // The bar follows what the landing really waits for: code, fonts, the 184
+    // point-cloud maps (reported by path3d.js) and the GPU warm-up. Explore
+    // photos and videos keep streaming in later, as before.
+    window.PP_LOADER = (() => {
+      const root = document.getElementById("loader");
+      const phraseEl = document.getElementById("loaderPhrase");
+      const bar = document.getElementById("loaderBar");
+      const fill = document.getElementById("loaderFill");
+      const t0 = performance.now();
+      const MIN_VISIBLE_MS = 1800; // a fast load still shows one readable phrase
+      const MORPH_MS = 1200; // same pace as the header morph
+      const HOLD_MS = 2600;
+      const FADE_MS = 800; // matches .loader transition
+      const FALLBACK_PHRASE = "reaching the summit";
+      const MORPH_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz0123456789#%*+=";
+
+      // —— progress: weighted parts, each 0..1 ——
+      const parts = { code: [0.12, 0], fonts: [0.08, 0], media: [0.75, 0], gpu: [0.05, 0] };
+      function report(key, f) {
+        const p = parts[key];
+        if (p) p[1] = Math.max(p[1], Math.min(1, f));
+        if (key === "media") parts.code[1] = 1; // path3d.js is running: code is in
+      }
+      function target() {
+        let sum = 0;
+        let weight = 0;
+        for (const k in parts) {
+          sum += parts[k][0] * parts[k][1];
+          weight += parts[k][0];
+        }
+        return sum / weight;
+      }
+
+      const CODE = ["timeline-data.js", "path3d.js", "three.module.min.js", "OrbitControls.js"];
+      const codeSeen = new Set();
+      try {
+        new PerformanceObserver((list) => {
+          for (const e of list.getEntries()) {
+            const name = e.name.split("?")[0].split("/").pop();
+            if (CODE.includes(name) && e.responseEnd > 0) codeSeen.add(name);
+          }
+          report("code", codeSeen.size / CODE.length);
+        }).observe({ type: "resource", buffered: true });
+      } catch {
+        report("code", 1);
+      }
+
+      const FACES = [
+        '350 12px "ABC Gaisyr Mono"',
+        '400 12px "ABC Gaisyr Mono"',
+        '500 12px "ABC Gaisyr Mono"',
+        '500 12px "Founders Grotesk Mono"',
+      ];
+      let facesDone = 0;
+      if (document.fonts?.load) {
+        for (const face of FACES) {
+          document.fonts
+            .load(face)
+            .catch(() => {})
+            .then(() => report("fonts", ++facesDone / FACES.length));
+        }
+      } else {
+        report("fonts", 1);
+      }
+
+      // —— phrases: random 3-word lines from loading-words.json ——
+      let words = null;
+      const timeout = (ms) => new Promise((r) => setTimeout(r, ms));
+      const wordsReady = fetch("loading-words.json")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((w) => (words = w))
+        .catch(() => {});
+      const faceReady = document.fonts?.load
+        ? document.fonts.load('500 12px "ABC Gaisyr Mono"').catch(() => {})
+        : Promise.resolve();
+      let phrasesOn = false;
+      Promise.race([Promise.all([wordsReady, faceReady]), timeout(1500)]).then(() => {
+        phrasesOn = true;
+      });
+
+      const pick = (list) => list[(Math.random() * list.length) | 0];
+      function makePhrase() {
+        const { nouns, verbs, modifiers } = words || {};
+        if (!nouns?.length || !verbs?.length || !modifiers?.length) return FALLBACK_PHRASE;
+        const noun = pick(nouns);
+        const verb = pick(verbs);
+        const mod = pick(modifiers);
+        const v = noun.number === "plural" ? verb.plural : verb.singular;
+        // Pattern A: adjective + noun + verb · Pattern B: noun + verb + adverb
+        return Math.random() < 0.5 ? `${mod.adjective} ${noun.word} ${v}` : `${noun.word} ${v} ${mod.adverb}`;
+      }
+      function nextPhrase(current) {
+        let next = makePhrase();
+        for (let i = 0; i < 6 && next === current && next !== FALLBACK_PHRASE; i++) next = makePhrase();
+        return next;
+      }
+
+      // Same scramble → decode morph as the page header (see module script)
+      function hash01(str) {
+        let h = 2166136261;
+        for (let i = 0; i < str.length; i++) {
+          h ^= str.charCodeAt(i);
+          h = Math.imul(h, 16777619);
+        }
+        return (h >>> 0) / 4294967295;
+      }
+      function morphBetween(from, to, t, seed) {
+        if (t <= 0.001) return from;
+        if (t >= 0.999) return to;
+        const len = Math.round(from.length + (to.length - from.length) * Math.min(1, t / 0.5));
+        const scrambled = Math.floor(Math.min(1, t / 0.4) * len);
+        const resolveU = t < 0.45 ? 0 : (t - 0.45) / 0.55;
+        const resolved = Math.floor(resolveU * to.length);
+        const tick = (t * 56) | 0;
+        let out = "";
+        for (let i = 0; i < len; i++) {
+          if (i < resolved) out += to[i] ?? "";
+          else if (i >= scrambled && i < from.length) out += from[i];
+          else if ((to[i] ?? from[i]) === " ") out += " ";
+          else out += MORPH_CHARS[(hash01(`${seed}:${i}:${tick}`) * MORPH_CHARS.length) | 0];
+        }
+        return out;
+      }
+      const ease = (x) => x * x * (3 - 2 * x);
+
+      // —— one rAF loop for bar + phrase ——
+      let shown = 0;
+      let lastValue = -1;
+      let last = t0;
+      let phrase = "";
+      let from = "";
+      let to = "";
+      let morphStart = -1;
+      let morphSeed = 0;
+      let holdUntil = 0;
+      let firstPhraseAt = 0;
+      let running = true;
+      let finishing = false;
+      let resolveFinish = null;
+      const finished = new Promise((r) => (resolveFinish = r));
+
+      function setText(text) {
+        if (phraseEl.textContent !== text) phraseEl.textContent = text;
+      }
+
+      function frame(now) {
+        if (!running) return;
+        const dt = Math.min(0.1, Math.max(0, (now - last) / 1000));
+        last = now;
+
+        // Ease toward the real progress, never backwards
+        const goal = target();
+        shown += (goal - shown) * (1 - Math.exp(-dt / 0.18));
+        if (goal - shown < 0.002) shown = goal;
+        if (shown !== lastValue) {
+          lastValue = shown;
+          fill.style.transform = `scaleX(${shown})`;
+          bar.setAttribute("aria-valuenow", String(Math.round(shown * 100)));
+        }
+
+        if (phrasesOn) {
+          if (morphStart >= 0) {
+            const u = Math.min(1, (now - morphStart) / MORPH_MS);
+            setText(morphBetween(from, to, ease(u), `loader-${morphSeed}`));
+            if (u >= 1) {
+              morphStart = -1;
+              phrase = to;
+              setText(phrase);
+              holdUntil = now + HOLD_MS;
+              firstPhraseAt ||= now;
+            }
+          } else if (now >= holdUntil) {
+            from = phrase;
+            to = nextPhrase(phrase);
+            morphStart = now;
+            morphSeed++;
+          }
+        }
+
+        // Dissolve once everything is in, the bar is full and a phrase was readable
+        const phraseRead = firstPhraseAt && now - firstPhraseAt > 500;
+        if (
+          finishing &&
+          shown >= 0.999 &&
+          now - t0 >= MIN_VISIBLE_MS &&
+          (phraseRead || now - t0 > 4000)
+        ) {
+          finishing = false;
+          root.classList.add("is-done");
+          setTimeout(() => {
+            running = false;
+            root.remove();
+            resolveFinish();
+          }, FADE_MS);
+        }
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+
+      /** Landing is ready: fill the bar, dissolve, resolve when the fade is over */
+      function finish() {
+        for (const k in parts) parts[k][1] = 1;
+        finishing = true;
+        return finished;
+      }
+
+      return { report, finish };
+    })();
+  </script>
   <div id="path3dStage"></div>
 
   <h1 class="site-title chrome-fade">PEAK PROMPT</h1>
@@ -483,7 +749,7 @@
 
   <script src="timeline-data.js"></script>
   <script type="module">
-    import { initPath3D } from "./path3d.js?v=146";
+    import { initPath3D } from "./path3d.js?v=147";
 
     const data = window.TIMELINE_DATA;
     if (!data) {
@@ -914,6 +1180,9 @@
         const t = startU >= 1 ? u : (u - startU) / (1 - startU);
         setChromeOpacity(t);
       },
+      onLoadProgress: (f) => window.PP_LOADER?.report("media", f),
+      // The loading screen dissolves first; the base→peak reveal starts after it
+      beforeIntro: () => window.PP_LOADER?.finish(),
       onIntroComplete: () => {
         setChromeOpacity(1);
         for (const el of chromeEls) el.style.opacity = "";

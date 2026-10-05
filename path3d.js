@@ -484,6 +484,8 @@ export function initPath3D({
   onTransitionFade,
   onIntroProgress,
   onIntroComplete,
+  onLoadProgress, // (0..1) share of the landing assets decoded
+  beforeIntro, // async — e.g. the loading screen dissolves before the reveal
   checkpointIconSrc,
   initialMode = "overview",
 }) {
@@ -1112,6 +1114,8 @@ export function initPath3D({
     // Only the point-cloud maps (pc, ~4 MB in all) gate the landing. Full-size
     // photos, posters and videos stream in later around the explore walker
     // (see updateHiStreaming), so the reveal starts after seconds, not minutes.
+    let loadedCount = 0;
+    onLoadProgress?.(0);
     const jobs = placements.map(async (placement) => {
       const { item } = placement;
       const isVideo = item.kind === "video";
@@ -1121,6 +1125,7 @@ export function initPath3D({
       if (!cloudTex && item.thumb && item.thumb !== cloudUrl) {
         cloudTex = await loadTexture(item.thumb, loader, { forCloud: true });
       }
+      onLoadProgress?.(++loadedCount / placements.length);
 
       const dissolveTex = cloudTex;
       // Source dimensions (identical ratio to the web renditions for all media)
@@ -2619,6 +2624,11 @@ export function initPath3D({
 
   buildMediaVisuals().then(async () => {
     await prewarmOverview();
+    try {
+      await beforeIntro?.();
+    } catch {
+      /* never block the landing on the loading screen */
+    }
     container.dataset.ready = "true";
     if (mode === "explore") {
       pendingLandingIntro = false;
