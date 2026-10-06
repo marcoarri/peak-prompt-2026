@@ -1563,13 +1563,6 @@ export function initPath3D({
     return jumpToWalk(jumpArriveDist(p));
   }
 
-  // TEMP (dev): land on the last photo to work on the end of the walk
-  function goToLastMedia() {
-    const p = placements[placements.length - 1];
-    if (!p) return false;
-    return jumpToWalk(jumpArriveDist(p));
-  }
-
   // Where a jump lands: the card sits halfway through its full-opacity hold
   // (formed, no mist, not yet dissolving). Solved with the layout's own math
   // (cardPose) because path bends and lateral offsets make a fixed lead in
@@ -2667,15 +2660,14 @@ export function initPath3D({
       hover.scale.setScalar(hover.userData.baseScale ?? 1);
     }
     hover = next;
-    const lockedCheckpoint =
-      hover?.userData?.checkpoint && !isCheckpointUnlocked(hover.userData.checkpointIndex);
-    container.style.cursor = lockedCheckpoint
-      ? "default"
-      : hover
-        ? "pointer"
-        : mode === "explore"
-          ? "default"
-          : "grab";
+    // Overview photos are not clickable — only unlocked checkpoints are
+    const clickableCheckpoint =
+      hover?.userData?.checkpoint && isCheckpointUnlocked(hover.userData.checkpointIndex);
+    container.style.cursor = clickableCheckpoint
+      ? "pointer"
+      : mode === "explore"
+        ? "default"
+        : "grab";
     onHoverItem?.(hover?.userData?.item ?? null);
   }
 
@@ -2734,12 +2726,10 @@ export function initPath3D({
       if (hits[0]?.object?.userData?.item) onSelect?.(hits[0].object.userData.item);
       return;
     }
+    // Overview: checkpoints jump into the walk; photos are not opened from here
     if (hover?.userData?.checkpoint) {
       if (isCheckpointUnlocked(hover.userData.checkpointIndex)) goToCheckpoint(hover.userData.item.id);
-      return;
     }
-    if (!hover?.userData?.item) return;
-    onSelect?.(hover.userData.item);
   }
 
   // Page in the background: silence and free the videos (decoders + buffers),
@@ -2970,7 +2960,6 @@ export function initPath3D({
     getExploreAutoplaySpeed: () => autoplaySpeedMul,
     getCheckpoints,
     goToCheckpoint,
-    goToLastMedia, // TEMP (dev)
     setUnlockedCheckpoints,
     setMediaSuspended,
     setNightMode(on) {
