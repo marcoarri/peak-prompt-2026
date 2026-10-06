@@ -17,7 +17,7 @@
   }
   </script>
   <!-- Fetch the 3D modules in parallel with the page instead of one after another -->
-  <link rel="modulepreload" href="./path3d.js?v=160" />
+  <link rel="modulepreload" href="./path3d.js?v=166" />
   <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js" />
   <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/controls/OrbitControls.js" />
   <style>
@@ -749,7 +749,7 @@
 
   <script src="timeline-data.js?v=3"></script>
   <script type="module">
-    import { initPath3D } from "./path3d.js?v=160";
+    import { initPath3D } from "./path3d.js?v=166";
 
     const data = window.TIMELINE_DATA;
     if (!data) {
@@ -934,8 +934,10 @@
     }
 
     let ctaExitMorphId = 0;
+    let ctaExiting = false;
     function startExploreCtaMorph() {
       // Cancel any exit-in-progress and allow re-appear after go-back (like landing)
+      ctaExiting = false;
       ctaExitMorphId += 1;
       const id = ++ctaAppearMorphId;
       exploreCta.classList.add("is-ready");
@@ -963,19 +965,24 @@
       requestAnimationFrame(frame);
     }
 
-    // On explore click: scramble-out first, ahead of the rest of the chrome fade
-    function dismissExploreCtaMorph() {
-      if (!exploreCta.classList.contains("is-ready") && !exploreCta.textContent) return;
+    // On explore click: scramble-out first, ahead of the rest of the chrome fade.
+    // Idempotent — a second call while exiting must NOT restart (that caused a flicker
+    // on checkpoint jumps: prepare dismiss + transition dismiss).
+    function dismissExploreCtaMorph(durationMs = CTA_EXIT_MORPH_MS) {
+      if (ctaExiting) return true;
+      if (!exploreCta.classList.contains("is-ready") && !exploreCta.textContent) return false;
+      ctaExiting = true;
       ctaAppearMorphId += 1; // cancel appear-in-progress
       const id = ++ctaExitMorphId;
       const from = exploreCta.textContent || CTA_TEXT;
+      const dur = Math.max(120, durationMs);
       exploreCta.style.pointerEvents = "none";
       exploreCta.setAttribute("aria-hidden", "true");
       const t0 = performance.now();
       const ease = (x) => x * x * (3 - 2 * x);
       function frame(now) {
         if (id !== ctaExitMorphId) return;
-        const u = Math.min(1, (now - t0) / CTA_EXIT_MORPH_MS);
+        const u = Math.min(1, (now - t0) / dur);
         const e = ease(u);
         exploreCta.style.opacity = String(1 - e);
         // Scramble away L→R then empty (inverse of the appear morph)
@@ -987,8 +994,10 @@
         exploreCta.textContent = "";
         exploreCta.style.opacity = "0";
         exploreCta.classList.remove("is-ready");
+        ctaExiting = false;
       }
       requestAnimationFrame(frame);
+      return true;
     }
 
     function syncExplorePlayUi(playing) {
@@ -1124,13 +1133,31 @@
       onModeChange: (mode) => {
         document.documentElement.dataset.mode = mode;
         morphHeader(mode);
-        if (mode !== "explore") {
+        if (mode === "explore") {
+          // Instant jumps (checkpoint from overview) skip the level veil —
+          // show explore chrome right away. Animated enter sets this at landing.
+          if (!levelFading) {
+            document.documentElement.setAttribute("data-explore-ready", "");
+            checkpointList.style.opacity = "1";
+            if (exploreFooter) exploreFooter.style.opacity = "1";
+            exploreMeta.style.opacity = "";
+          }
+        } else {
           syncExplorePlayUi(false);
           setOutro(false, { instant: true }); // leaving explore: no reverse morph
         }
       },
       onHoverItem: showCoords,
       onExploreProgress: syncExploreProgress,
+      // Checkpoint → explore: clear the CTA, then start the dissolve immediately
+      onPrepareExploreEnter: (done) => {
+        const clearing = dismissExploreCtaMorph(Math.round(CTA_EXIT_MORPH_MS * 0.55));
+        if (!clearing) {
+          done();
+          return;
+        }
+        window.setTimeout(done, Math.round(CTA_EXIT_MORPH_MS * 0.55));
+      },
       // Level veil: footer + checkpoints + image meta. Header never fades.
       onTransitionFade: (veil, { direction = "enter", exploreChrome } = {}) => {
         if (siteFooter) siteFooter.style.opacity = String(Math.max(0, 1 - veil));
@@ -1178,6 +1205,9 @@
         }
         document.documentElement.removeAttribute("data-explore-ready");
         if (direction === "enter") {
+          // CTA explore path: scramble out ahead of the late veil.
+          // Checkpoint path already cleared the CTA in onPrepareExploreEnter.
+          dismissExploreCtaMorph();
           checkpointList.style.opacity = "0";
           if (exploreFooter) exploreFooter.style.opacity = "0";
           exploreMeta.style.opacity = "0";

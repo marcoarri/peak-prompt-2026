@@ -485,6 +485,7 @@ export function initPath3D({
   onExploreProgress,
   onTransitionChange,
   onTransitionFade,
+  onPrepareExploreEnter, // (done) => … — e.g. scramble CTA out before a checkpoint jump
   onIntroProgress,
   onIntroComplete,
   onLoadProgress, // (0..1) share of the landing assets decoded
@@ -1365,7 +1366,7 @@ export function initPath3D({
   const OVERVIEW_VIEW_Y = 0.1;
   const _ovViewUp = new THREE.Vector3();
 
-  // Trail-base eye in overview space — same pose as explore at walkDist=0
+  // Trail-base eye in overview space — fly-in target for the Explore CTA pan
   // (path runs straight into the screen, perpendicular to the view plane)
   const overviewBaseEye = new THREE.Vector3();
   const overviewBaseLook = new THREE.Vector3();
@@ -1380,7 +1381,6 @@ export function initPath3D({
       .sub(overviewRawCenter)
       .multiplyScalar(OVERVIEW_SPREAD)
       .add(overviewRawCenter);
-    // Level look along the path — no upward bias (matches explore opening)
     overviewBaseLook.copy(overviewBaseEye).addScaledVector(_eyeTan, 80 * OVERVIEW_SPREAD);
     const basCam = new THREE.PerspectiveCamera(EXPLORE_FOV_DEG, 1, 0.15, 6000);
     basCam.position.copy(overviewBaseEye);
@@ -1656,7 +1656,8 @@ export function initPath3D({
   }
 
   function jumpToWalk(target) {
-    const inExplore = mode === "explore" && !camTransition;
+    if (camTransition) return false;
+    const inExplore = mode === "explore";
     if (inExplore) setExploreAutoplay(false);
     const needed = exploreNodes.filter((n) => {
       const a = n.placement.dist - target;
@@ -1674,6 +1675,22 @@ export function initPath3D({
       startWinding(target);
       return true;
     }
+    if (mode === "overview") {
+      // Dissolve only (no CTA fly-in pan), landing on this photo.
+      // Wait for the CTA scramble to clear, then start the level fade immediately.
+      if (checkpointEnterArmed) return false;
+      cancelPendingJump();
+      jumpProtect = new Set(needed);
+      const go = () => {
+        checkpointEnterArmed = false;
+        if (mode !== "overview" || camTransition) return;
+        setMode("explore", { animate: true, endWalk: target, pan: false });
+      };
+      checkpointEnterArmed = true;
+      if (onPrepareExploreEnter) onPrepareExploreEnter(go);
+      else go();
+      return true;
+    }
     pendingJump = { target, needed, deadline: performance.now() + JUMP_WAIT_MAX_MS };
     if (pendingJumpReady()) applyPendingJump();
     return true;
@@ -1687,7 +1704,13 @@ export function initPath3D({
     const jump = pendingJump;
     pendingJump = null;
     if (!jump) return;
-    if (mode !== "explore" || camTransition) setMode("explore", { animate: false });
+    // Fallback path (should be rare) — dissolve only, like checkpoint jumps
+    if (mode === "overview" && !camTransition) {
+      jumpProtect = new Set(jump.needed);
+      setMode("explore", { animate: true, endWalk: jump.target, pan: false });
+      return;
+    }
+    if (mode !== "explore" || camTransition) setMode("explore", { animate: false, endWalk: jump.target });
     else setExploreAutoplay(false);
     walkDist = jump.target;
     resetWalkMotion();
@@ -1701,8 +1724,10 @@ export function initPath3D({
     jumpProtect = null;
   }
 
-  // Overview → explore: pan + level-change fade (out before pan settles, then in)
+  // Overview → explore: CTA uses pan + fade; checkpoint jumps are fade-only
   const ENTER_EXPLORE_MS = 3000;
+  const ENTER_CHECKPOINT_MS = Math.round(ENTER_EXPLORE_MS * 0.75); // 25% faster
+  let checkpointEnterArmed = false;
   const _trPos = new THREE.Vector3();
   const _trMid = new THREE.Vector3();
   const _trQuat = new THREE.Quaternion();
@@ -1753,14 +1778,22 @@ export function initPath3D({
   }
 
   function cancelCamTransition() {
-    const dir = camTransition?.kind === "leave" ? "leave" : "enter";
-    if (camTransition) {
+    const had = camTransition;
+    const dir = had?.kind === "leave" ? "leave" : "enter";
+    if (had) {
       restoreOverviewNodesHome();
       for (const n of overviewNodes) n.group.visible = mode === "overview";
     }
     camTransition = null;
-    onTransitionChange?.(false, { direction: dir });
-    onTransitionFade?.(0, { direction: dir });
+    // Only notify when aborting a real level fade. A no-op cancel (e.g. checkpoint
+    // jump with animate:false) used to force exploreChrome=0 and hide the list.
+    if (had) {
+      onTransitionChange?.(false, { direction: dir });
+      onTransitionFade?.(0, {
+        direction: dir,
+        exploreChrome: dir === "enter" ? 1 : 0,
+      });
+    }
     if (!landingIntro) setViewFade(0);
     resetOverviewMistWash();
   }
@@ -1910,7 +1943,8 @@ export function initPath3D({
   }
 
   const overviewHomeDisp = DISP_MAX * OVERVIEW_CLOUD_SCALE * OVERVIEW_DISP_MUL;
-  // Enter timeline (u 0→1): pan + late fade-out → handoff → fade-in
+  // Enter timeline (u 0→1): late fade-out → handoff → fade-in
+  // (CTA also pans; checkpoint jumps skip the pan — see camTransition.pan)
   const ENTER_FADE_OUT_START = 0.58; // later — leave room for the explore… exit morph
   const ENTER_FADE_OUT_END = 0.72; // black a beat before the pan goes static
   const ENTER_PAN_END = 0.78;
@@ -2002,11 +2036,12 @@ export function initPath3D({
     controls.autoRotate = true;
   }
 
-  function beginEnterExplore(endWalk = 0) {
+  function beginEnterExplore(endWalk = 0, { pan = true } = {}) {
     setExploreAutoplay(false);
     for (const n of exploreNodes) stopNodeVideo(n);
     controls.enabled = false;
-    controls.autoRotate = false;
+    // CTA pans from a frozen pose; checkpoint jumps keep orbiting through the dissolve
+    controls.autoRotate = !pan;
     exploreRoot.visible = false;
     restoreOverviewNodesHome();
     for (const n of overviewNodes) n.group.visible = true;
@@ -2018,53 +2053,66 @@ export function initPath3D({
       cp.mesh.visible = true;
     }
     setViewFade(0);
-    onTransitionFade?.(0);
+    onTransitionFade?.(0, { direction: "enter" });
     resetOverviewMistWash();
 
     const clampedEnd = THREE.MathUtils.clamp(endWalk, 0, exploreTotal);
-    // Decode the opening photos during the pan; they upload under the black veil
+    // Decode destination photos during the transition; they upload under black
     updateHiStreaming(clampedEnd);
     startHiPrefetch();
-    // Live orbit pose → trailhead (path perpendicular into the screen)
-    const fromPos = camera.position.clone();
-    const fromQuat = camera.quaternion.clone();
-    const fromFov = camera.fov;
-    const toPos = overviewBaseEye.clone();
-    const toQuat = overviewBaseQuat.clone();
-    const travel = fromPos.distanceTo(toPos);
-    // Gentle arc — motion feel comes mostly from the sine ease
-    _trMid
-      .lerpVectors(fromPos, toPos, 0.5)
-      .addScaledVector(
-        _worldUp,
-        Math.min(overviewSphere.radius * 0.045, travel * 0.06)
-      );
 
-    onTransitionChange?.(true, { durationMs: ENTER_EXPLORE_MS, direction: "enter" });
+    const clampedPan = !!pan;
+    // Checkpoint jumps: shorter, and the veil starts immediately (no CTA lead-in)
+    const fadeNow = !clampedPan;
+    const dur = fadeNow ? ENTER_CHECKPOINT_MS : ENTER_EXPLORE_MS;
+    onTransitionChange?.(true, { durationMs: dur, direction: "enter" });
     onTransitionFade?.(0, { direction: "enter" });
+
     camTransition = {
       t0: performance.now(),
-      dur: ENTER_EXPLORE_MS,
+      dur,
       kind: "enter",
-      fromPos,
-      midPos: _trMid.clone(),
-      toPos,
-      fromQuat,
-      toQuat,
-      fromFov,
-      toFov: EXPLORE_FOV_DEG,
+      pan: clampedPan,
+      fadeNow,
+      handoffAt: fadeNow ? EXIT_HANDOFF_AT : ENTER_HANDOFF_AT,
       endWalk: clampedEnd,
-      farStart: Math.max(8000, overviewSphere.radius * 20),
       handedOff: false,
     };
-    scene.fog = null;
-    camera.near = 0.5;
-    camera.far = camTransition.farStart;
-    camera.updateProjectionMatrix();
+
+    if (clampedPan) {
+      // Live orbit pose → trailhead (path perpendicular into the screen)
+      const fromPos = camera.position.clone();
+      const fromQuat = camera.quaternion.clone();
+      const fromFov = camera.fov;
+      const toPos = overviewBaseEye.clone();
+      const toQuat = overviewBaseQuat.clone();
+      const travel = fromPos.distanceTo(toPos);
+      _trMid
+        .lerpVectors(fromPos, toPos, 0.5)
+        .addScaledVector(
+          _worldUp,
+          Math.min(overviewSphere.radius * 0.045, travel * 0.06)
+        );
+      Object.assign(camTransition, {
+        fromPos,
+        midPos: _trMid.clone(),
+        toPos,
+        fromQuat,
+        toQuat,
+        fromFov,
+        toFov: EXPLORE_FOV_DEG,
+        farStart: Math.max(8000, overviewSphere.radius * 20),
+      });
+      scene.fog = null;
+      camera.near = 0.5;
+      camera.far = camTransition.farStart;
+      camera.updateProjectionMatrix();
+    }
   }
 
   function transitionVeil(u, kind) {
-    if (kind === "leave") {
+    // Leave + checkpoint-enter: dissolve starts immediately
+    if (kind === "leave" || (kind === "enter" && camTransition?.fadeNow)) {
       if (u < LEAVE_FADE_OUT_END) return easeInOutSine(u / LEAVE_FADE_OUT_END);
       if (u < LEAVE_FADE_IN_START) return 1;
       if (u < LEAVE_FADE_IN_END) {
@@ -2072,7 +2120,7 @@ export function initPath3D({
       }
       return 0;
     }
-    // enter
+    // CTA enter: late fade-out so the explore… scramble can read first
     if (u < ENTER_FADE_OUT_START) return 0;
     if (u < ENTER_FADE_OUT_END) {
       return easeInOutSine((u - ENTER_FADE_OUT_START) / (ENTER_FADE_OUT_END - ENTER_FADE_OUT_START));
@@ -2131,29 +2179,32 @@ export function initPath3D({
       return true;
     }
 
-    // —— enter: pan + level fade ——
-    const flyU = THREE.MathUtils.clamp(u / ENTER_PAN_END, 0, 1);
-    const posE = easeInOutSine(flyU);
-    const lookE = easeInOutSine(flyU);
-    const fovE = easeInOutSine(flyU);
-
+    // —— enter: CTA pans + fades; checkpoint jumps fade only ——
+    const doPan = !!camTransition.pan;
     if (!camTransition.handedOff) {
-      bezier3(
-        camTransition.fromPos,
-        camTransition.midPos,
-        camTransition.toPos,
-        posE,
-        _trPos
-      );
-      _trQuat.slerpQuaternions(camTransition.fromQuat, camTransition.toQuat, lookE);
-      camera.position.copy(_trPos);
-      camera.quaternion.copy(_trQuat);
-      camera.up.set(0, 1, 0);
-      camera.fov = THREE.MathUtils.lerp(camTransition.fromFov, camTransition.toFov, fovE);
-      camera.near = 0.5;
-      camera.far = camTransition.farStart;
-      camera.updateProjectionMatrix();
-
+      if (doPan) {
+        const flyU = THREE.MathUtils.clamp(u / ENTER_PAN_END, 0, 1);
+        const posE = easeInOutSine(flyU);
+        const lookE = easeInOutSine(flyU);
+        const fovE = easeInOutSine(flyU);
+        bezier3(
+          camTransition.fromPos,
+          camTransition.midPos,
+          camTransition.toPos,
+          posE,
+          _trPos
+        );
+        _trQuat.slerpQuaternions(camTransition.fromQuat, camTransition.toQuat, lookE);
+        camera.position.copy(_trPos);
+        camera.quaternion.copy(_trQuat);
+        camera.up.set(0, 1, 0);
+        camera.fov = THREE.MathUtils.lerp(camTransition.fromFov, camTransition.toFov, fovE);
+        camera.near = 0.5;
+        camera.far = camTransition.farStart;
+        camera.updateProjectionMatrix();
+      } else {
+        controls.update(); // keep overview orbit alive through the dissolve
+      }
       const tOv = now * 0.001;
       for (const mat of overviewCloudMats) mat.uniforms.uTime.value = tOv;
     } else {
@@ -2173,12 +2224,15 @@ export function initPath3D({
 
     if (!camTransition.handedOff) updateCheckpointPins(1 - veil);
 
-    if (!camTransition.handedOff && u >= ENTER_HANDOFF_AT) {
+    const handoffAt = camTransition.handoffAt ?? ENTER_HANDOFF_AT;
+    if (!camTransition.handedOff && u >= handoffAt) {
       camTransition.handedOff = true;
-      camera.position.copy(camTransition.toPos);
-      camera.quaternion.copy(camTransition.toQuat);
-      camera.fov = camTransition.toFov;
-      camera.updateProjectionMatrix();
+      if (doPan) {
+        camera.position.copy(camTransition.toPos);
+        camera.quaternion.copy(camTransition.toQuat);
+        camera.fov = camTransition.toFov;
+        camera.updateProjectionMatrix();
+      }
       handoffToExplore(camTransition.endWalk);
     }
 
@@ -2187,6 +2241,7 @@ export function initPath3D({
       setViewFade(0);
       onTransitionFade?.(0, { direction, exploreChrome: 1 });
       camTransition = null;
+      jumpProtect = null;
       onTransitionChange?.(false, { direction });
       return true;
     }
@@ -2595,8 +2650,9 @@ export function initPath3D({
     updateHiStreaming(winding ? winding.to : walkDist);
   }
 
-  function setMode(next, { animate = true } = {}) {
+  function setMode(next, { animate = true, endWalk = 0, pan = true } = {}) {
     const target = next === "explore" ? "explore" : "overview";
+    checkpointEnterArmed = false;
     cancelPendingJump();
     cancelWinding();
     setHover(null);
@@ -2605,7 +2661,7 @@ export function initPath3D({
     if (target === "explore" && mode === "overview" && animate && !camTransition) {
       mode = "explore";
       container.dataset.mode = mode;
-      beginEnterExplore(0);
+      beginEnterExplore(endWalk, { pan });
       // Page mode/chrome switches later under black (handoffToExplore → onModeChange)
       return mode;
     }
@@ -2620,8 +2676,7 @@ export function initPath3D({
     setExploreAutoplay(false);
     for (const n of exploreNodes) stopNodeVideo(n);
     if (mode === "explore") {
-      // Farthest POV — start of lead-in, everything ahead
-      walkDist = 0;
+      walkDist = THREE.MathUtils.clamp(endWalk, 0, exploreTotal);
       resetWalkMotion();
       for (const slot of cloudPool) slot.pts.visible = false;
       startHiPrefetch();
