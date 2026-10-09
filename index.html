@@ -17,7 +17,7 @@
   }
   </script>
   <!-- Fetch the 3D modules in parallel with the page instead of one after another -->
-  <link rel="modulepreload" href="./path3d.js?v=166" />
+  <link rel="modulepreload" href="./path3d.js?v=167" />
   <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js" />
   <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/controls/OrbitControls.js" />
   <style>
@@ -179,12 +179,15 @@
     .checkpoint-pin:not(:disabled):hover span,
     .checkpoint-pin:not(:disabled):focus-visible span { text-decoration: underline; }
 
-    /* Locked until the explore walk reaches it — grey like the explore row */
+    /* Locked until the explore walk reaches it — solid grey = 30% ink on the
+       background (reads the same over any cloud or photo), like the explore row */
     .checkpoint-pin.is-locked {
-      color: color-mix(in srgb, var(--fg) 50%, transparent);
+      color: color-mix(in srgb, var(--fg) 30%, var(--bg));
       cursor: default;
     }
-    .checkpoint-pin.is-locked img { opacity: 0.5; }
+    /* Black icon → same solid grey (night: white icon → 30% white on black) */
+    .checkpoint-pin.is-locked img { filter: invert(0.7); }
+    html.night .checkpoint-pin.is-locked img { filter: invert(0.3); }
 
     /* Page chrome */
     .site-title {
@@ -323,6 +326,7 @@
 
     /* Checkpoints/footer opacity driven by level veil (JS). Meta uses is-hidden. */
     .explore-checkpoints,
+    .explore-stats,
     .explore-footer {
       opacity: 0;
     }
@@ -343,9 +347,40 @@
       line-height: normal;
     }
 
-    .explore-checkpoints {
+    /* Walk stats — where the checkpoint row used to sit (Figma "Desktop - 10").
+       The box spans the visible text of the landing's footer row, from
+       "3—days workshop" to "2—4 october 2026": 633.89px, starting 315.2px
+       left of centre (measured; constant at any viewport width). Values are
+       pressed to left / centre / right inside it. */
+    .explore-stats {
       position: fixed;
       top: 50px;
+      left: calc(50% - 315.2px);
+      width: 633.89px;
+      z-index: 3;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      color: var(--fg);
+      font-family: var(--font-label);
+      font-size: 12px;
+      font-weight: 500;
+      line-height: normal;
+      text-transform: uppercase;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+      pointer-events: none;
+    }
+    .explore-stats .stat-unit { text-transform: none; } /* "m" stays lowercase */
+    .explore-stats > :nth-child(1) { text-align: left; }
+    .explore-stats > :nth-child(2) { text-align: center; }
+    .explore-stats > :nth-child(3) { text-align: right; }
+
+    .explore-checkpoints {
+      position: fixed;
+      /* Below the stats row with the gap the stats keep from the title:
+         title box ends at 36.5px → stats at 50px (gap 13.5) → stats end at
+         64px → checkpoints at 64 + 13.5 */
+      top: 77.5px;
       left: 25px;
       z-index: 3;
       width: calc(100% - 2 * var(--edge));
@@ -356,7 +391,7 @@
     }
 
     .explore-checkpoints button {
-      color: color-mix(in srgb, var(--fg) 50%, var(--bg));
+      color: color-mix(in srgb, var(--fg) 30%, var(--bg));
       font-family: var(--font-label);
       font-size: 12px;
       font-weight: 500;
@@ -368,6 +403,8 @@
     /* Grey = still locked; reaching a checkpoint unlocks it for good */
     .explore-checkpoints button:disabled { cursor: default; }
     .explore-checkpoints button.is-unlocked { color: var(--fg); }
+    /* Colour eases only at the moment of unlocking — theme switches stay instant */
+    .explore-checkpoints button.is-unlocking { transition: color 0.4s ease; }
 
     .explore-checkpoints button:not(:disabled):hover,
     .explore-checkpoints button:not(:disabled):focus-visible {
@@ -422,6 +459,7 @@
     }
 
     html:not([data-mode="explore"]) .explore-checkpoints,
+    html:not([data-mode="explore"]) .explore-stats,
     html:not([data-mode="explore"]) .explore-meta,
     html:not([data-mode="explore"]) .explore-footer,
     html[data-mode="explore"] .explore-cta,
@@ -720,6 +758,12 @@
 
   <button type="button" class="back-to-overview" id="backToOverview" data-mode="overview" hidden>← GO BACK</button>
 
+  <div class="explore-stats" id="exploreStats" aria-hidden="true">
+    <span>altitude (<span id="statAltitude">0000</span> <span class="stat-unit">m</span>)</span>
+    <span>time (<span id="statTime">00:00:00</span>)</span>
+    <span>distance (<span id="statDistance">0000</span> <span class="stat-unit">m</span>)</span>
+  </div>
+
   <nav class="explore-checkpoints" id="checkpointList" aria-label="Checkpoint"></nav>
 
   <div class="explore-meta is-hidden" id="exploreMeta" aria-live="polite">
@@ -749,7 +793,7 @@
 
   <script src="timeline-data.js?v=3"></script>
   <script type="module">
-    import { initPath3D } from "./path3d.js?v=166";
+    import { initPath3D } from "./path3d.js?v=167";
 
     const data = window.TIMELINE_DATA;
     if (!data) {
@@ -767,6 +811,15 @@
     const exploreOutro = document.getElementById("exploreOutro");
     const explorePlay = document.getElementById("explorePlay");
     const checkpointList = document.getElementById("checkpointList");
+    const exploreStats = document.getElementById("exploreStats");
+    const statAltitude = document.getElementById("statAltitude");
+    const statTime = document.getElementById("statTime");
+    const statDistance = document.getElementById("statDistance");
+    // Stats row + checkpoint row share the explore level veil
+    function setExploreTopOpacity(v) {
+      checkpointList.style.opacity = v;
+      exploreStats.style.opacity = v;
+    }
     const exploreMeta = document.getElementById("exploreMeta");
     const metaTime = document.getElementById("metaTime");
     const metaNumber = document.getElementById("metaNumber");
@@ -1026,6 +1079,31 @@
       currentCoords.textContent = formatDms(item) || COORDS_TEXT;
     }
 
+    const CP_UNLOCK_MORPH_MS = 900;
+    function morphUnlockedCheckpoint(btn, delayMs = 0) {
+      const label = btn.dataset.label || btn.textContent;
+      // Added before is-unlocked toggles (same task) so the grey→black eases
+      btn.classList.add("is-unlocking");
+      clearTimeout(btn._unlockTimer);
+      btn._unlockTimer = setTimeout(() => btn.classList.remove("is-unlocking"), 450);
+      const id = (btn._morphId = (btn._morphId || 0) + 1);
+      const t0 = performance.now() + delayMs;
+      const ease = (x) => x * x * (3 - 2 * x);
+      function frame(now) {
+        if (btn._morphId !== id) return;
+        if (now < t0) {
+          requestAnimationFrame(frame);
+          return;
+        }
+        const u = Math.min(1, (now - t0) / CP_UNLOCK_MORPH_MS);
+        // Same text in and out: scrambles L→R, then decodes — never blanks
+        btn.textContent = morphBetween(label, label, ease(u), `cp-unlock:${label}`);
+        if (u < 1) requestAnimationFrame(frame);
+        else btn.textContent = label;
+      }
+      requestAnimationFrame(frame);
+    }
+
     // Explore: meta row shows the formed image (kept while it fades out),
     // checkpoints unlock for good once the walk has reached them
     let checkpoints = [];
@@ -1034,7 +1112,24 @@
     let lastUnlocked = -1;
     let maxWalk = 0;
     let levelFading = false;
-    function syncExploreProgress({ walkDist, formedItem, formedIndex, total, atEnd }) {
+    const pad2 = (n) => String(n).padStart(2, "0");
+    const pad4 = (n) => String(Math.max(0, Math.round(n))).padStart(4, "0"); // "0000 m" in Figma
+    function formatHms(totalSec) {
+      const s = Math.max(0, Math.floor(totalSec));
+      return `${pad2(Math.floor(s / 3600))}:${pad2(Math.floor((s % 3600) / 60))}:${pad2(s % 60)}`;
+    }
+    function setText(el, text) {
+      if (el.textContent !== text) el.textContent = text;
+    }
+    function syncWalkStats(stats) {
+      if (!stats) return;
+      setText(statAltitude, pad4(stats.altitudeM));
+      setText(statTime, formatHms(stats.elapsedS));
+      setText(statDistance, pad4(stats.distanceM));
+    }
+
+    function syncExploreProgress({ walkDist, formedItem, formedIndex, total, atEnd, stats }) {
+      syncWalkStats(stats);
       setOutro(atEnd);
       const formedId = formedItem?.id ?? null;
       if (formedId !== lastFormedId) {
@@ -1054,8 +1149,17 @@
       let unlocked = 0;
       for (const cp of checkpoints) if (maxWalk >= cp.arriveDist - 0.5) unlocked++;
       if (unlocked !== lastUnlocked) {
+        const prevUnlocked = lastUnlocked;
         lastUnlocked = unlocked;
         app?.setUnlockedCheckpoints?.(unlocked);
+        // Newly reached checkpoints turn black with a short decode morph
+        // (staggered when several unlock at once, e.g. a jump forward)
+        if (prevUnlocked >= 0) {
+          const btns = checkpointList.querySelectorAll("button");
+          for (let i = prevUnlocked; i < unlocked; i++) {
+            if (btns[i]) morphUnlockedCheckpoint(btns[i], (i - prevUnlocked) * 90);
+          }
+        }
         checkpointList.querySelectorAll("button").forEach((btn, i) => {
           btn.disabled = i >= unlocked;
           btn.classList.toggle("is-unlocked", i < unlocked);
@@ -1138,7 +1242,7 @@
           // show explore chrome right away. Animated enter sets this at landing.
           if (!levelFading) {
             document.documentElement.setAttribute("data-explore-ready", "");
-            checkpointList.style.opacity = "1";
+            setExploreTopOpacity("1");
             if (exploreFooter) exploreFooter.style.opacity = "1";
             exploreMeta.style.opacity = "";
           }
@@ -1168,7 +1272,7 @@
               ? Math.max(0, 1 - veil)
               : 0;
         const c = String(Math.max(0, Math.min(1, chrome)));
-        checkpointList.style.opacity = c;
+        setExploreTopOpacity(c);
         if (exploreFooter) exploreFooter.style.opacity = c;
         // Formed-image info follows the same veil (skip when already hidden)
         if (!exploreMeta.classList.contains("is-hidden")) {
@@ -1185,7 +1289,7 @@
           exploreMeta.style.transition = "";
           if (direction === "enter") {
             document.documentElement.setAttribute("data-explore-ready", "");
-            checkpointList.style.opacity = "1";
+            setExploreTopOpacity("1");
             if (exploreFooter) exploreFooter.style.opacity = "1";
             // Clear inline so .is-hidden can hide meta while an image isn't formed
             exploreMeta.style.opacity = "";
@@ -1193,7 +1297,7 @@
           // Only after a real go-back — not on init cancelCamTransition
           if (direction === "leave") {
             document.documentElement.removeAttribute("data-explore-ready");
-            checkpointList.style.opacity = "0";
+            setExploreTopOpacity("0");
             if (exploreFooter) exploreFooter.style.opacity = "0";
             exploreMeta.style.opacity = "0";
             ctaRestartTimer = window.setTimeout(() => {
@@ -1208,7 +1312,7 @@
           // CTA explore path: scramble out ahead of the late veil.
           // Checkpoint path already cleared the CTA in onPrepareExploreEnter.
           dismissExploreCtaMorph();
-          checkpointList.style.opacity = "0";
+          setExploreTopOpacity("0");
           if (exploreFooter) exploreFooter.style.opacity = "0";
           exploreMeta.style.opacity = "0";
           exploreUiTimer = setTimeout(() => {
@@ -1253,6 +1357,7 @@
         btn.type = "button";
         btn.dataset.id = cp.id;
         btn.textContent = `checkpoint-${cp.index}`;
+        btn.dataset.label = btn.textContent;
         btn.disabled = true;
         checkpointList.appendChild(btn);
       }

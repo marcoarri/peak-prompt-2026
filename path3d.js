@@ -88,7 +88,7 @@ function projectFactory(track) {
     const y = (ele ?? ele0) - ele0;
     return new THREE.Vector3(x, y, z);
   }
-  return { toVec3 };
+  return { toVec3, ele0 };
 }
 
 function buildPath(track, toVec3) {
@@ -502,7 +502,7 @@ export function initPath3D({
     .slice()
     .sort((a, b) => a.time.localeCompare(b.time));
 
-  const { toVec3 } = projectFactory(track);
+  const { toVec3, ele0: trailEle0 } = projectFactory(track);
   const path = buildPath(track, toVec3);
 
   // Explore: light denoise. Autoplay: separate ultra-smooth ribbon (+ LUT).
@@ -646,6 +646,65 @@ export function initPath3D({
   }
 
   const lastPlacementDist = placements[placements.length - 1]?.dist ?? 0;
+
+  // —— Walk stats (explore HUD): altitude, elapsed time, distance covered ——
+  // The walk maps onto the GPS trail through the photos themselves (each photo
+  // slot ↔ its real position/time on the track), so the numbers always agree
+  // with the image on screen. Distance is horizontal, like Wikiloc reports it.
+  const trailCum2D = [0];
+  for (let i = 1; i < path.pts.length; i++) {
+    const a = path.pts[i - 1].pos;
+    const b = path.pts[i].pos;
+    trailCum2D.push(trailCum2D[i - 1] + Math.hypot(b.x - a.x, b.z - a.z));
+  }
+  const _walkStats = { altitudeM: 0, elapsedS: 0, distanceM: 0 };
+  let statKnots = null; // [walk, realDist] — built once the trail length is final
+  function buildStatKnots() {
+    const k = [[0, 0], [START_LEAD_M, 0]];
+    for (const p of placements) {
+      if (p.item.extra) continue; // detached closing photo isn't on the trail
+      const real = Math.min(path.total, path.distanceAtTime(p.item.time));
+      const last = k[k.length - 1];
+      if (p.dist > last[0]) k.push([p.dist, Math.max(real, last[1])]);
+    }
+    const last = k[k.length - 1];
+    k.push([Math.max(exploreTotal, last[0] + 1e-3), path.total]);
+    return k;
+  }
+  function walkStats(walk) {
+    statKnots ??= buildStatKnots();
+    const k = statKnots;
+    let real;
+    if (walk <= k[0][0]) real = k[0][1];
+    else if (walk >= k[k.length - 1][0]) real = k[k.length - 1][1];
+    else {
+      let lo = 0;
+      let hi = k.length - 1;
+      while (hi - lo > 1) {
+        const mid = (lo + hi) >> 1;
+        if (k[mid][0] <= walk) lo = mid;
+        else hi = mid;
+      }
+      const u = (walk - k[lo][0]) / Math.max(1e-6, k[hi][0] - k[lo][0]);
+      real = k[lo][1] + (k[hi][1] - k[lo][1]) * u;
+    }
+    // real (3D metres along the track) → track segment
+    const cum = path.cum;
+    let lo = 0;
+    let hi = cum.length - 1;
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1;
+      if (cum[mid] <= real) lo = mid;
+      else hi = mid;
+    }
+    const u = THREE.MathUtils.clamp((real - cum[lo]) / Math.max(1e-6, cum[hi] - cum[lo]), 0, 1);
+    const a = path.pts[lo];
+    const b = path.pts[hi];
+    _walkStats.altitudeM = trailEle0 + a.pos.y + (b.pos.y - a.pos.y) * u;
+    _walkStats.elapsedS = (a.t + (b.t - a.t) * u - path.pts[0].t) / 1000;
+    _walkStats.distanceM = trailCum2D[lo] + (trailCum2D[hi] - trailCum2D[lo]) * u;
+    return _walkStats;
+  }
   // "extra" media (data) don't count: the closing photo reads 185/184
   const countedTotal = placements.filter((p) => !p.item.extra).length;
   const exploreTotal = Math.max(
@@ -2627,6 +2686,7 @@ export function initPath3D({
       formedIndex: winding ? -1 : (formed?.index ?? -1),
       total: countedTotal,
       atEnd: walkDist >= outroRevealDist,
+      stats: walkStats(walkDist),
     });
 
     // Prefer near collapsing clouds + far mist
