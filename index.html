@@ -4,7 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <title>Peak Prompt</title>
-  <link rel="icon" href="data:," />
+  <!-- Flat sky-blue dot: sampled from the sky of IMG_7085 (#638fc2), +25% saturation → #578ece -->
+  <link rel="icon" href="assets/ui/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="assets/ui/favicon-32.png" type="image/png" sizes="32x32" />
+  <link rel="apple-touch-icon" href="assets/ui/favicon-180.png" />
   <!-- Loading-screen face: fetched with the page so the first phrase never swaps font -->
   <link rel="preload" href="assets/fonts/abc-gaisyr/ABCGaisyrMono-Medium.otf" as="font" type="font/otf" crossorigin />
   <!-- Import map first: it must be known before any module (or modulepreload) loads -->
@@ -17,7 +20,7 @@
   }
   </script>
   <!-- Fetch the 3D modules in parallel with the page instead of one after another -->
-  <link rel="modulepreload" href="./path3d.js?v=167" />
+  <link rel="modulepreload" href="./path3d.js?v=169" />
   <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js" />
   <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/controls/OrbitControls.js" />
   <style>
@@ -152,14 +155,16 @@
 
     #path3dStage canvas:active { cursor: grabbing; }
 
-    /* Checkpoint pins (built by path3d.js, positioned over the 3D anchors) */
+    /* Checkpoint pins (built by path3d.js, positioned over the 3D anchors).
+       Figma "Desktop - 11": 3px dot on the cloud point → 1px × 80px line
+       → 12px label 5px after the line, all centred on the line. Dot and line take
+       the text colour (black · grey when locked · white at night). */
     .checkpoint-pin {
       position: absolute;
       left: 0;
       top: 0;
       display: flex;
       align-items: center;
-      gap: 4.4px;
       color: var(--fg);
       font-family: var(--font-label);
       font-size: 12px;
@@ -169,10 +174,23 @@
     }
 
     .checkpoint-pin[hidden] { display: none; }
-    .checkpoint-pin img { display: block; }
-    html.night .checkpoint-pin img { filter: invert(1); }
+    .checkpoint-pin-dot {
+      flex: none;
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .checkpoint-pin-line {
+      flex: none;
+      width: 80px;
+      height: 1px;
+      margin-left: -1px; /* starts at the dot centre, like the frame */
+      background: currentColor;
+      transform-origin: 0 50%; /* draws left → right (scaleX from path3d.js) */
+    }
     .checkpoint-pin span {
-      margin-bottom: 2px; /* was 4.4 — sit ~2px lower vs the icon */
+      margin-left: 5px;
       font-variant-numeric: tabular-nums;
       min-width: 11ch;
     }
@@ -185,9 +203,6 @@
       color: color-mix(in srgb, var(--fg) 30%, var(--bg));
       cursor: default;
     }
-    /* Black icon → same solid grey (night: white icon → 30% white on black) */
-    .checkpoint-pin.is-locked img { filter: invert(0.7); }
-    html.night .checkpoint-pin.is-locked img { filter: invert(0.3); }
 
     /* Page chrome */
     .site-title {
@@ -793,7 +808,7 @@
 
   <script src="timeline-data.js?v=3"></script>
   <script type="module">
-    import { initPath3D } from "./path3d.js?v=167";
+    import { initPath3D } from "./path3d.js?v=169";
 
     const data = window.TIMELINE_DATA;
     if (!data) {
@@ -1344,7 +1359,6 @@
           startExploreCtaMorph();
         }, CTA_DELAY_MS);
       },
-      checkpointIconSrc: "assets/ui/checkpoint.svg",
       initialMode: "overview",
     });
 

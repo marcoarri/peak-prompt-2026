@@ -34,6 +34,9 @@ assets/audio/
 # Web-optimized assets (needed for GitHub Pages)
 !assets/web/
 !assets/web/**
+# UI assets (favicons)
+!assets/ui/
+!assets/ui/**
 
 # Backups / junk
 *.bak

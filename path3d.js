@@ -490,7 +490,6 @@ export function initPath3D({
   onIntroComplete,
   onLoadProgress, // (0..1) share of the landing assets decoded
   beforeIntro, // async — e.g. the loading screen dissolves before the reveal
-  checkpointIconSrc,
   initialMode = "overview",
 }) {
   if (!container || !data?.track?.length) return null;
@@ -1454,6 +1453,10 @@ export function initPath3D({
   const checkpointPins = [];
   const MORPH_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz0123456789#%*+=";
   const CP_MORPH_MS = 1100; // dedicated scramble window once a pin appears
+  // Pin reveal: the leader line draws left → right, then the label fades in
+  // (decoding) once the line is complete
+  const CP_LINE_MS = 600;
+  const CP_LABEL_FADE_MS = 500;
   {
     const markGeo = new THREE.CircleGeometry(6.5, 28);
     const markMat = new THREE.MeshBasicMaterial({ visible: false });
@@ -1476,12 +1479,14 @@ export function initPath3D({
       pin.disabled = true;
       pin.classList.add("is-locked");
       pin.style.opacity = "0";
-      if (checkpointIconSrc) {
-        const icon = document.createElement("img");
-        icon.src = checkpointIconSrc;
-        icon.alt = "";
-        pin.appendChild(icon);
-      }
+      // Leader (Figma "Desktop - 11"): 3px dot on the cloud anchor, 80px
+      // hairline out, then the label
+      const dot = document.createElement("i");
+      dot.className = "checkpoint-pin-dot";
+      const line = document.createElement("i");
+      line.className = "checkpoint-pin-line";
+      line.style.transform = "scaleX(0)";
+      pin.append(dot, line);
       const label = document.createElement("span");
       const targetText = `checkpoint-${i + 1}`;
       label.textContent = "";
@@ -1497,11 +1502,13 @@ export function initPath3D({
         pin,
         mesh,
         label,
+        line,
         targetText,
         ele: p.item.ele ?? 0,
         jitter: hash01(id + ":cp-intro"),
         reveal: 0,
-        morphStart: null,
+        morphStart: null, // reveal animation start (line, then label)
+        animDone: false,
       });
     });
   }
@@ -1569,18 +1576,36 @@ export function initPath3D({
       if (!show) continue;
       const x = (_pinNdc.x * 0.5 + 0.5) * w;
       const y = (-_pinNdc.y * 0.5 + 0.5) * h;
-      pin.style.transform = `translate(${x}px, ${y}px) translate(-5.8px, -50%)`;
+      // Anchor = centre of the 3px dot
+      pin.style.transform = `translate(${x}px, ${y}px) translate(-1.5px, -50%)`;
       const opacity = String(reveal * fade);
       if (pin.style.opacity !== opacity) pin.style.opacity = opacity;
 
+      // Reveal: line draws, then the label fades in while it decodes. It
+      // starts as the pin's part of the mass appears (landing) and always
+      // runs to the end, even if the landing finishes meanwhile.
+      let lineK = 1;
+      let labelK = 1;
       let morphT = 1;
-      if (landingIntro) {
-        if (reveal > 0.08 && cp.morphStart == null) cp.morphStart = now;
-        morphT =
-          cp.morphStart != null
-            ? THREE.MathUtils.clamp((now - cp.morphStart) / CP_MORPH_MS, 0, 1)
-            : 0;
+      if (!cp.animDone) {
+        if (cp.morphStart == null && (!landingIntro || reveal > 0.08)) cp.morphStart = now;
+        if (cp.morphStart == null) {
+          lineK = 0;
+          labelK = 0;
+          morphT = 0;
+        } else {
+          const t = now - cp.morphStart;
+          const u = THREE.MathUtils.clamp(t / CP_LINE_MS, 0, 1);
+          lineK = u * u * (3 - 2 * u);
+          labelK = THREE.MathUtils.clamp((t - CP_LINE_MS) / CP_LABEL_FADE_MS, 0, 1);
+          morphT = THREE.MathUtils.clamp((t - CP_LINE_MS) / CP_MORPH_MS, 0, 1);
+          if (t >= CP_LINE_MS + Math.max(CP_LABEL_FADE_MS, CP_MORPH_MS)) cp.animDone = true;
+        }
       }
+      const lineT = `scaleX(${lineK})`;
+      if (cp.line.style.transform !== lineT) cp.line.style.transform = lineT;
+      const labelO = String(labelK);
+      if (label.style.opacity !== labelO) label.style.opacity = labelO;
       const text = morphLabel(targetText, morphT, targetText);
       if (label.textContent !== text) label.textContent = text;
     }
@@ -1930,6 +1955,7 @@ export function initPath3D({
     for (const cp of checkpointPins) {
       cp.reveal = 0;
       cp.morphStart = null;
+      cp.animDone = false;
       cp.mesh.visible = false;
       cp.label.textContent = "";
       cp.pin.style.opacity = "0";
@@ -1957,7 +1983,6 @@ export function initPath3D({
     for (const cp of checkpointPins) {
       cp.reveal = 1;
       cp.mesh.visible = mode === "overview";
-      cp.label.textContent = cp.targetText;
       cp.pin.style.opacity = mode === "overview" ? "1" : "0";
     }
     setViewFade(0);
@@ -2065,6 +2090,7 @@ export function initPath3D({
     for (const cp of checkpointPins) {
       cp.reveal = 1;
       cp.morphStart = null;
+      cp.animDone = true; // go-back: pins return fully drawn, under the veil
       cp.mesh.visible = true;
       cp.pin.hidden = true;
       cp.pin.style.opacity = "0";
@@ -2371,6 +2397,7 @@ export function initPath3D({
       for (const m of checkpointMarkers) m.visible = true;
       for (const cp of checkpointPins) {
         cp.reveal = 1;
+        cp.animDone = true;
         cp.pin.style.opacity = "1";
         if (cp.label) cp.label.textContent = cp.targetText;
       }
@@ -2380,6 +2407,7 @@ export function initPath3D({
       for (const cp of checkpointPins) {
         cp.reveal = 0;
         cp.morphStart = null;
+        cp.animDone = false;
         cp.pin.style.opacity = "0";
         cp.pin.hidden = true;
       }
