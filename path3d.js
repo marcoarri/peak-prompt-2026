@@ -19,6 +19,18 @@ const START_AHEAD_M = 32;
 const CLOUD_LONG_SIDE = 324;
 const MAX_ACTIVE_CLOUDS = 12;
 const SHOW_AHEAD_M = 120;
+// Explore mist fades in by point density (never by extra fog: the points are
+// opaque, so a whitened near cloud covered the mist behind it with white
+// rectangles). Density keeps the colour shown at what the fog would give at
+// WALK_FOG_DEPTH × walk ahead: in a switchback a card far ahead on the walk can
+// swing into view much closer, and its mist popped in barely fogged (0.65 ≈ the
+// usual depth/walk ratio, so plain stretches look as before). Mist also thickens
+// over CLOUD_ENTER_M after entering the window, and thins far off-axis (swept in
+// from a screen edge by a bend). The photo plane follows the same factor, or it
+// showed as a pale rectangle where its mist was thinned.
+const WALK_FOG_DEPTH = 0.65;
+const CLOUD_ENTER_M = 30;
+const SIDE_FADE_DEG = [50, 75]; // off-axis angle: mist starts thinning → gone
 const MAX_VISIBLE_CARDS = 22;
 // Soft white fog — cards ease in from the distance
 const FOG_NEAR_M = 32;
@@ -30,7 +42,11 @@ const REFORM_SCREEN_FRAC = 0.38;
 // Formed-image opacity: fade in → hold at 100% → linear dissolve (original pace).
 const EXIT_FADE_IN_START = REFORM_SCREEN_FRAC - 0.34; // crossfade with collapsing cloud
 const EXIT_HOLD_SPAN = 0.22; // extra coverFrac at full opacity after reform
-const EXIT_DISSOLVE_SPAN = 0.75; // same length as the original exit, linear
+// Exit dissolve, linear in walked distance (not in screen cover, which grows
+// as 1/depth and made the exit accelerate): from the hold end down to this
+// share of that depth. Scrolling back replays it in reverse, in step with the walk.
+const EXIT_END_DEPTH = 0.3;
+const EXIT_GROW = 0.25; // extra scale while dissolving (on top of perspective)
 const EXPLORE_FOV_DEG = 62;
 // Far clouds are oversized mist; they shrink to the photo footprint as they reform
 const CLOUD_FAR_SCALE = 4.5;
@@ -40,15 +56,15 @@ const CLOUD_FAR_SPREAD = 1.45;
 const MIN_EXPLORE_GAP_M = 10;
 // A detached media (data detachM) keeps a longer explore gap before it
 const DETACH_EXPLORE_GAP_M = 25;
-// Light GPS denoise only — keep real bends, just kill harsh spikes
-const PATH_SMOOTH_PASSES = 1;
-const PATH_SMOOTH_RADIUS = 2;
-// Autoplay-only path: heavy smooth + resample (manual scroll keeps explore curve)
-const AUTOPLAY_SMOOTH_PASSES = 6;
-const AUTOPLAY_SMOOTH_RADIUS = 12;
-const AUTOPLAY_RESAMPLE_N = 160;
-const AUTOPLAY_LUT_N = 720;
-const AUTOPLAY_MAX_CLOUDS = 6;
+// Walk path (scroll and autoplay share it, so switching never moves the view):
+// moderate smooth + resample keeps the trail's bends; the heading looks along a
+// long chord (±WALK_LOOK_M) so the camera never turns around in a switchback,
+// where every card ahead would end up behind it.
+const WALK_SMOOTH_PASSES = 3;
+const WALK_SMOOTH_RADIUS = 6;
+const WALK_RESAMPLE_N = 240;
+const WALK_LOOK_M = 45;
+const WALK_LUT_N = 720;
 // Overview volumetric mass
 const OVERVIEW_SPREAD = 1.15; // +15% spacing between images
 const OVERVIEW_CLOUD_SCALE = 9.5;
@@ -193,17 +209,11 @@ function resamplePolyline(pts, count) {
   return out;
 }
 
-function buildExploreCurve(pathPts) {
+/** Smooth ribbon the explore walk follows (scroll and autoplay) */
+function buildWalkCurve(pathPts) {
   if (pathPts.length < 2) return null;
-  const pts = smoothPathPoints(pathPts, PATH_SMOOTH_PASSES, PATH_SMOOTH_RADIUS);
-  return new THREE.CatmullRomCurve3(pts, false, "catmullrom", 0.15);
-}
-
-/** Ultra-smooth ribbon used only while autoplay is running */
-function buildAutoplayCurve(pathPts) {
-  if (pathPts.length < 2) return null;
-  const smoothed = smoothPathPoints(pathPts, AUTOPLAY_SMOOTH_PASSES, AUTOPLAY_SMOOTH_RADIUS);
-  const pts = resamplePolyline(smoothed, AUTOPLAY_RESAMPLE_N);
+  const smoothed = smoothPathPoints(pathPts, WALK_SMOOTH_PASSES, WALK_SMOOTH_RADIUS);
+  const pts = resamplePolyline(smoothed, WALK_RESAMPLE_N);
   return new THREE.CatmullRomCurve3(pts, false, "catmullrom", 0.05);
 }
 
@@ -384,6 +394,7 @@ function makeCloudMaterial(tex, aspect) {
       uFogNear: { value: FOG_NEAR_M },
       uFogFar: { value: FOG_FAR_M },
       uFogColor: { value: new THREE.Color(0xffffff) },
+      uDensity: { value: 1 }, // share of points drawn (explore mist fade-in)
       uPlane: { value: new THREE.Vector2(w, h) },
       uTime: { value: 0 },
       uWiggle: { value: 0 }, // meters — explore mist only
@@ -397,7 +408,7 @@ function makeCloudMaterial(tex, aspect) {
       attribute vec2 aUv;
       uniform sampler2D uColor;
       uniform float uDisp, uSize, uSpread, uScale, uPointMul;
-      uniform float uFogNear, uFogFar;
+      uniform float uFogNear, uFogFar, uDensity;
       uniform float uTime, uWiggle;
       uniform vec2 uPlane;
       varying vec3 vColor;
@@ -408,6 +419,15 @@ function makeCloudMaterial(tex, aspect) {
       }
 
       void main() {
+        // Fade by density: each point has a fixed threshold, dropped ones are
+        // clipped away (no colour, no depth written)
+        if (hash21(aUv + vec2(41.37, 7.91)) >= uDensity) {
+          vColor = vec3(1.0);
+          vFog = 1.0;
+          gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
+          gl_PointSize = 0.0;
+          return;
+        }
         vec3 pos = vec3(
           (aUv.x - 0.5) * uPlane.x * uSpread,
           (aUv.y - 0.5) * uPlane.y * uSpread,
@@ -504,11 +524,9 @@ export function initPath3D({
   const { toVec3, ele0: trailEle0 } = projectFactory(track);
   const path = buildPath(track, toVec3);
 
-  // Explore: light denoise. Autoplay: separate ultra-smooth ribbon (+ LUT).
-  const exploreCurve = buildExploreCurve(path.pts);
-  const exploreCurveLen = exploreCurve?.getLength() || path.total;
-  const autoplayCurve = buildAutoplayCurve(path.pts);
-  const autoplayCurveLen = autoplayCurve?.getLength() || path.total;
+  // Explore walk: one smooth ribbon (+ LUT) for scroll and autoplay alike
+  const walkCurve = buildWalkCurve(path.pts);
+  const walkCurveLen = walkCurve?.getLength() || path.total;
 
   const _fA = new THREE.Vector3();
   const _fB = new THREE.Vector3();
@@ -524,17 +542,17 @@ export function initPath3D({
   const _pTan = new THREE.Vector3();
   const _pSide = new THREE.Vector3();
   const _pUp = new THREE.Vector3();
-  /** @param {"raw"|"explore"|"autoplay"} curveMode */
-  function writeFrame(realDist, pos, tan, side, up, curveMode = "explore") {
+  /** @param {"raw"|"walk"} curveMode */
+  function writeFrame(realDist, pos, tan, side, up, curveMode = "walk") {
     // Sample on-path, then extend past the GPX end along the final tangent so
     // padded explore slots near the summit don't all collapse onto one point.
     const overshoot = Math.max(0, realDist - path.total);
     const d = THREE.MathUtils.clamp(realDist, 0, path.total);
-    const curve = curveMode === "autoplay" ? autoplayCurve : curveMode === "explore" ? exploreCurve : null;
-    const curveLen = curveMode === "autoplay" ? autoplayCurveLen : curveMode === "explore" ? exploreCurveLen : 0;
+    const curve = curveMode === "walk" ? walkCurve : null;
+    const curveLen = curveMode === "walk" ? walkCurveLen : 0;
     if (curve && curveLen > 1e-3) {
       const u = THREE.MathUtils.clamp(d / path.total, 0, 1);
-      const span = Math.min(0.02, 12 / curveLen);
+      const span = Math.min(0.05, WALK_LOOK_M / curveLen);
       const u0 = Math.max(0, u - span);
       const u1 = Math.min(1, u + span);
       curve.getPointAt(u, pos);
@@ -573,23 +591,23 @@ export function initPath3D({
     up.copy(frame.up);
   }
 
-  // Autoplay camera LUT — O(1) lerp, no CatmullRom in the hot loop
-  const autoplayLut = [];
+  // Walk camera LUT — O(1) lerp, no CatmullRom in the hot loop
+  const walkLut = [];
   {
-    const n = AUTOPLAY_LUT_N;
+    const n = WALK_LUT_N;
     for (let i = 0; i < n; i++) {
       const realDist = (i / Math.max(1, n - 1)) * path.total;
-      autoplayLut.push(captureFrame(realDist, "autoplay"));
+      walkLut.push(captureFrame(realDist, "walk"));
     }
   }
-  function sampleAutoplayLut(realDist, pos, tan, side, up) {
+  function sampleWalkLut(realDist, pos, tan, side, up) {
     const overshoot = Math.max(0, realDist - path.total);
     const d = THREE.MathUtils.clamp(realDist, 0, path.total);
-    const u = (d / Math.max(1e-6, path.total)) * (autoplayLut.length - 1);
-    const i = Math.min(autoplayLut.length - 2, Math.max(0, u | 0));
+    const u = (d / Math.max(1e-6, path.total)) * (walkLut.length - 1);
+    const i = Math.min(walkLut.length - 2, Math.max(0, u | 0));
     const f = u - i;
-    const a = autoplayLut[i];
-    const b = autoplayLut[i + 1];
+    const a = walkLut[i];
+    const b = walkLut[i + 1];
     pos.lerpVectors(a.pos, b.pos, f);
     tan.lerpVectors(a.tan, b.tan, f);
     if (tan.lengthSq() < 1e-8) tan.copy(a.tan);
@@ -640,8 +658,7 @@ export function initPath3D({
   // Precompute photo frames (fixed along path) — avoids CatmullRom every layout tick
   for (const p of placements) {
     const realForSlot = exploreToReal(p.dist);
-    p.exploreFrame = captureFrame(realForSlot, "explore");
-    p.autoplayFrame = captureFrame(realForSlot, "autoplay");
+    p.frame = captureFrame(realForSlot, "walk");
   }
 
   const lastPlacementDist = placements[placements.length - 1]?.dist ?? 0;
@@ -810,7 +827,7 @@ export function initPath3D({
     return { pts, mat };
   });
 
-  function applyCloudSlot(slot, node, { disp, spread, scale, planeW, planeH, ahead }) {
+  function applyCloudSlot(slot, node, { disp, spread, scale, planeW, planeH, ahead, density = 1 }) {
     const { pts, mat } = slot;
     const cols = node.cloudW || CLOUD_LONG_SIDE;
     const rows = node.cloudH || CLOUD_LONG_SIDE;
@@ -841,6 +858,7 @@ export function initPath3D({
       fogNear = THREE.MathUtils.lerp(FOG_NEAR_M, FOG_NEAR_M * 0.35, enter);
     }
     mat.uniforms.uFogNear.value = fogNear;
+    mat.uniforms.uDensity.value = density;
     mat.uniformsNeedUpdate = true;
   }
 
@@ -857,16 +875,9 @@ export function initPath3D({
   // Smoothed wheel: steps move this target, walkDist eases toward it per frame
   let scrollTarget = null;
   const SCROLL_EASE_S = 0.12;
-  // Scrolling back, a photo re-enters from behind the camera: its reverse
-  // dissolve may un-dissolve at most this fast (full re-entry ≈ 1.1 s), so it
-  // no longer pops in within one wheel notch. Forward motion is untouched.
-  const REENTRY_S = 1.1;
-  let snapReentry = true; // jumps / mode changes: no re-entry animation
-  let lastLayoutMs = 0;
-  /** Any walk change that isn't a wheel scroll: stop easing, no re-entry lag */
+  /** Any walk change that isn't a wheel scroll: stop easing */
   function resetWalkMotion() {
     scrollTarget = null;
-    snapReentry = true;
   }
   let camTransition = null; // overview → explore fly-in state
   let landingIntro = null; // base→peak reveal on first load
@@ -1430,7 +1441,7 @@ export function initPath3D({
   const overviewBaseLook = new THREE.Vector3();
   const overviewBaseQuat = new THREE.Quaternion();
   {
-    writeFrame(0, _eyePos, _eyeTan, _eyeSide, _eyeUp, "explore");
+    sampleWalkLut(0, _eyePos, _eyeTan, _eyeSide, _eyeUp);
     const basePull = START_LEAD_M / Math.max(1e-6, PATH_COMPRESS);
     overviewBaseEye
       .copy(_eyePos)
@@ -1662,8 +1673,8 @@ export function initPath3D({
     const node = exploreNodes.find((n) => n.placement === p);
     if (!node) return checkpointArriveDist(p);
     const cover = (walk) => {
-      eyeAt(walk, false, _arPos, _arTan, _arSide, _arUp, _arCam);
-      return cardPose(node, false, _arTan, _arSide, _arUp, _arCam, _arPose).coverFrac;
+      eyeAt(walk, _arPos, _arTan, _arSide, _arUp, _arCam);
+      return cardPose(node, _arTan, _arSide, _arUp, _arCam, _arPose).coverFrac;
     };
     // Step back from the card until it reads smaller than the target, then
     // refine. Nearest-first matters near the summit, where the trail loops
@@ -1716,7 +1727,6 @@ export function initPath3D({
     const kick = Math.sin(Math.PI * u);
     camera.fov = EXPLORE_FOV_DEG + WIND_FOV_KICK_DEG * kick * kick;
     camera.updateProjectionMatrix();
-    snapReentry = true; // no re-entry pacing while warping
     if (u >= 1) finishWinding();
     else updateExploreLayout();
   }
@@ -2475,11 +2485,10 @@ export function initPath3D({
     return t * t * (3 - 2 * t);
   }
 
-  /** Eye frame + camera world point for a walk position (scroll curve or autoplay ribbon) */
-  function eyeAt(walk, autoplay, pos, tan, side, up, camOut) {
+  /** Eye frame + camera world point for a walk position (same ribbon in every mode) */
+  function eyeAt(walk, pos, tan, side, up, camOut) {
     const realEye = exploreToReal(walk);
-    if (autoplay) sampleAutoplayLut(realEye, pos, tan, side, up);
-    else writeFrame(realEye, pos, tan, side, up, "explore");
+    sampleWalkLut(realEye, pos, tan, side, up);
     const leadPad = Math.max(0, START_LEAD_M - walk);
     camOut
       .copy(pos)
@@ -2492,8 +2501,8 @@ export function initPath3D({
    * Camera-space pose and screen cover of a card, seen from an eye frame.
    * Shared by the layout and by the checkpoint arrival search.
    */
-  function cardPose(node, autoplay, eyeTan, eyeSide, eyeUp, camW, out) {
-    const frame = autoplay ? node.placement.autoplayFrame : node.placement.exploreFrame;
+  function cardPose(node, eyeTan, eyeSide, eyeUp, camW, out) {
+    const { frame } = node.placement;
     const { w: planeW, h: planeH } = planeSizeForAspect(node.aspect);
 
     // Center as the mist reforms into a readable card
@@ -2530,15 +2539,8 @@ export function initPath3D({
 
   let layoutStamp = 0;
   let layoutDirty = false;
-  let reentryActive = false;
   function updateExploreLayout() {
     layoutDirty = false;
-    const nowMs = performance.now();
-    const layoutDt = lastLayoutMs ? Math.min(0.1, (nowMs - lastLayoutMs) / 1000) : 0;
-    lastLayoutMs = nowMs;
-    const snap = snapReentry;
-    snapReentry = false;
-    reentryActive = false;
     // exploreNodes follow padded dist order — scan forward, no full sort
     const stamp = ++layoutStamp;
     let aheadCount = 0;
@@ -2551,8 +2553,8 @@ export function initPath3D({
       node.visStamp = stamp;
     }
 
-    // Camera: autoplay uses LUT on the ultra-smooth ribbon; scroll uses explore curve
-    eyeAt(walkDist, exploreAutoplay, _eyePos, _eyeTan, _eyeSide, _eyeUp, _camWorld);
+    // Camera: LUT on the smooth ribbon — identical for scroll and autoplay
+    eyeAt(walkDist, _eyePos, _eyeTan, _eyeSide, _eyeUp, _camWorld);
 
     // Keep a fixed camera; place cards in camera-local space (stable scroll/autoplay)
     camera.position.set(0, EYE_H, 0);
@@ -2560,7 +2562,8 @@ export function initPath3D({
     camera.lookAt(0, EYE_H, -10);
 
     const cloudJobs = [];
-    const maxClouds = exploreAutoplay ? AUTOPLAY_MAX_CLOUDS : MAX_ACTIVE_CLOUDS;
+    // Same cap in both modes, or mist clouds pop in/out when switching
+    const maxClouds = MAX_ACTIVE_CLOUDS;
     // Nearest image that is fully formed (or still dissolving away)
     let formed = null;
 
@@ -2569,8 +2572,6 @@ export function initPath3D({
       const show = mode === "explore" && node.visStamp === stamp;
 
       if (!show || ahead <= 0 || ahead >= SHOW_AHEAD_M) {
-        // Behind the camera = fully dissolved; far ahead = nothing to undo
-        node.exitS = ahead <= 0 ? 1 : 0;
         node.group.visible = false;
         node.hiPlane.visible = false;
         node.hiPlane.scale.setScalar(1);
@@ -2580,7 +2581,7 @@ export function initPath3D({
       }
 
       // Precomputed frame at padded explore slot → camera-space pose + cover
-      const pose = cardPose(node, exploreAutoplay, _eyeTan, _eyeSide, _eyeUp, _camWorld, _pose);
+      const pose = cardPose(node, _eyeTan, _eyeSide, _eyeUp, _camWorld, _pose);
       const { planeW, planeH, lx, ly, lz, yawNow } = pose;
       // Geometry is PHOTO_H×aspect — scale mesh to the viewport-equalized footprint
       const baseScaleX = planeW / Math.max(1e-6, PHOTO_H * node.aspect);
@@ -2606,13 +2607,18 @@ export function initPath3D({
       // Fog opacity (0 far/fogged → 1 clear). Disp peaks at full opacity, then
       // collapses to 0 as the image reforms — driven by camera distance/cover.
       // 1 = fully fogged (far), 0 = clear — same band as shader entrance fog
-      const fogT = THREE.MathUtils.clamp(
-        (viewDepth - FOG_NEAR_M) / Math.max(1e-3, cloudFogFar - FOG_NEAR_M),
-        0,
-        1
-      );
-      const fogSmooth = fogT * fogT * (3 - 2 * fogT);
+      const fogAt = (d) => smooth01((d - FOG_NEAR_M) / Math.max(1e-3, cloudFogFar - FOG_NEAR_M));
+      const fogSmooth = fogAt(viewDepth);
       const cloudOpacity = 1 - fogSmooth; // 100% when camera has cleared the fog band
+      // Mist density (see WALK_FOG_DEPTH): as clear as the walk says if the
+      // trail bends the card closer, thin at the window entrance and when a
+      // bend sweeps it in sideways
+      const walkClear = 1 - fogAt(ahead * WALK_FOG_DEPTH);
+      const offAxisDeg = THREE.MathUtils.radToDeg(Math.atan2(Math.abs(lx), Math.max(0.2, -lz)));
+      const density =
+        Math.min(1, walkClear / Math.max(1e-3, cloudOpacity)) *
+        smooth01((SHOW_AHEAD_M - ahead) / CLOUD_ENTER_M) *
+        (1 - smooth01((offAxisDeg - SIDE_FADE_DEG[0]) / (SIDE_FADE_DEG[1] - SIDE_FADE_DEG[0])));
       // Max disp at full opacity; collapses to 0 as the image forms
       const dispFactor = cloudOpacity * Math.pow(1 - reformT, 1.15);
       const depthCap = Math.max(0.35, viewDepth * 0.88);
@@ -2620,7 +2626,7 @@ export function initPath3D({
       const cloudScale = THREE.MathUtils.lerp(CLOUD_FAR_SCALE, CLOUD_NEAR_SCALE, smooth01(reformT));
       const cloudSpread = THREE.MathUtils.lerp(CLOUD_FAR_SPREAD, 1, smooth01(reformT));
 
-      // Fade in (with cloud) → hold 100% → linear dissolve at original pace
+      // Fade in (with cloud) → hold 100% → dissolve linear in walked distance
       const holdEnd = REFORM_SCREEN_FRAC + EXIT_HOLD_SPAN;
       let grow = 1;
       let planeOpacity = 0;
@@ -2637,34 +2643,23 @@ export function initPath3D({
         planeOpacity = 1;
       } else {
         dissolving = true;
+        // cover ∝ 1/depth, so holdEnd / coverFrac = depth / depth at hold end
         const exitU = THREE.MathUtils.clamp(
-          (coverFrac - holdEnd) / Math.max(0.05, EXIT_DISSOLVE_SPAN),
+          (1 - holdEnd / coverFrac) / (1 - EXIT_END_DEPTH),
           0,
           1
         );
-        planeOpacity = 1 - exitU; // linear, full span like the original exit
-        grow = 1 + exitU * 2.4;
+        planeOpacity = 1 - exitU;
+        grow = 1 + exitU * EXIT_GROW;
       }
 
-      // Re-entry pacing (scrolling back): the dissolve may follow the geometry
-      // up instantly (forward), but comes back down at most 1/REENTRY_S per s.
-      const exitTarget = dissolving ? 1 - planeOpacity : 0;
-      const exitPrev = node.exitS ?? exitTarget;
-      node.exitS =
-        snap || exitTarget >= exitPrev
-          ? exitTarget
-          : Math.max(exitTarget, exitPrev - layoutDt / REENTRY_S);
-      if (node.exitS > exitTarget + 1e-4) {
-        reentryActive = true;
-        dissolving = true;
-        grow = 1 + node.exitS * 2.4;
-        planeOpacity = Math.min(planeOpacity, 1 - node.exitS);
-      }
+      // Photo follows its mist's density (1 for a card formed ahead)
+      planeOpacity *= density;
 
       // Crossfade: keep mist until the real image is mostly opaque
       // Mid-flight, only photos already decoded flash by (no low-res stand-ins)
       const showPlane = planeOpacity > 0.02 && (!winding || node.hiState === HI_READY);
-      const showCloud = !!node.dissolveTex && reformT < 0.995 && planeOpacity < 0.92;
+      const showCloud = !!node.dissolveTex && reformT < 0.995 && planeOpacity < 0.92 && density > 0.005;
 
       if (showCloud) {
         cloudJobs.push({
@@ -2675,6 +2670,7 @@ export function initPath3D({
           scale: cloudScale,
           planeW,
           planeH,
+          density,
         });
       }
 
@@ -2688,11 +2684,11 @@ export function initPath3D({
         node.hiPlane.material.depthWrite = planeOpacity > 0.9;
         node.hiPlane.renderOrder = order;
         if (node.isVideo) {
-          if (planeOpacity > 0.55 && ahead >= 0.35 && grow <= 3.1 && !winding) playNodeVideo(node, planeOpacity);
+          if (planeOpacity > 0.55 && ahead >= 0.35 && !winding) playNodeVideo(node, planeOpacity);
           else if (dissolving || planeOpacity < 0.4) stopNodeVideo(node);
         }
         // Only cull when truly past the card — not during fade-in (opacity near 0)
-        if (ahead < 0.35 || grow > 3.1 || (dissolving && planeOpacity < 0.04)) {
+        if (ahead < 0.35 || (dissolving && planeOpacity < 0.04)) {
           node.group.visible = false;
           node.hiPlane.visible = false;
           stopNodeVideo(node);
@@ -2992,7 +2988,7 @@ export function initPath3D({
           }
           layoutDirty = true;
         }
-        if (layoutDirty || reentryActive) updateExploreLayout();
+        if (layoutDirty) updateExploreLayout();
       }
     }
     tickHiStreaming();

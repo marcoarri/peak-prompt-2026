@@ -42,6 +42,7 @@ POSTER_SIZE = 1600
 VIDEO_CRF = 26          # più basso = più qualità/peso (18-28 range sensato)
 VIDEO_MAXRATE = "8M"    # tetto: le riprese in montagna sono rumorose e a CRF libero gonfiano
 VIDEO_MAX_SIDE = 1920
+VIDEO_AUDIO_GAIN = 1.25  # +25% sul volume dei video (picchi originali ≤ −13.9 dB: nessun clipping)
 IMG_EXT = {".jpg", ".jpeg", ".png", ".heic", ".webp"}
 VID_EXT = {".mov", ".mp4", ".m4v"}
 AUD_EXT = {".m4a", ".mp3", ".wav", ".aac"}
@@ -116,7 +117,7 @@ def process_video(src: Path, force: bool) -> dict:
                "-profile:v", "high", "-vf", vf,
                "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709",
                "-movflags", "+faststart", "-map_metadata", "-1"]
-        cmd += ["-map", "0:a:0", "-c:a", "aac", "-b:a", "128k"] if has_audio else ["-an"]
+        cmd += ["-map", "0:a:0", "-af", f"volume={VIDEO_AUDIO_GAIN}", "-c:a", "aac", "-b:a", "128k"] if has_audio else ["-an"]
         tmp = dst.with_name(dst.stem + ".tmp.mp4")
         subprocess.run(cmd + [str(tmp)], check=True)
         os.replace(tmp, dst)
