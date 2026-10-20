@@ -498,7 +498,6 @@ function makeCloudMaterial(tex, aspect) {
 export function initPath3D({
   container,
   data,
-  onSelect,
   onExploreAutoplayChange,
   onModeChange,
   onHoverItem,
@@ -959,7 +958,7 @@ export function initPath3D({
   }
 
   // Explore videos play with their sound. Volume follows the card opacity, so
-  // the audio fades with the image. Lightbox open / page hidden suspend them.
+  // the audio fades with the image. A hidden page suspends them.
   const mediaSuspend = new Set();
   function playNodeVideo(node, level = 1) {
     const v = node.video;
@@ -993,7 +992,7 @@ export function initPath3D({
     node.videoPlaying = false;
   }
 
-  /** reason: "lightbox" | "hidden" … videos stay paused while any is set */
+  /** reason: "hidden" … videos stay paused while any is set */
   function setMediaSuspended(reason, on) {
     if (on) {
       mediaSuspend.add(reason);
@@ -1372,7 +1371,6 @@ export function initPath3D({
         fog: true,
       });
       const hiPlane = new THREE.Mesh(planeGeoFor(clamped), hiMat);
-      hiPlane.userData.item = item;
       group.add(hiPlane);
       group.visible = false;
       exploreRoot.add(group);
@@ -2853,18 +2851,9 @@ export function initPath3D({
   function onClick(e) {
     if (Math.hypot(e.clientX - downX, e.clientY - downY) > 5) return;
     if (camTransition || landingIntro) return;
+    // Explore photos are not clickable
+    if (mode === "explore") return;
     processPendingPointer(); // hover must reflect the latest move
-    if (mode === "explore") {
-      // pick nearest visible explore plane
-      const rect = renderer.domElement.getBoundingClientRect();
-      pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(pointer, camera);
-      const meshes = exploreNodes.filter((n) => n.hiPlane.visible).map((n) => n.hiPlane);
-      const hits = raycaster.intersectObjects(meshes, false);
-      if (hits[0]?.object?.userData?.item) onSelect?.(hits[0].object.userData.item);
-      return;
-    }
     // Overview: checkpoints jump into the walk; photos are not opened from here
     if (hover?.userData?.checkpoint) {
       if (isCheckpointUnlocked(hover.userData.checkpointIndex)) goToCheckpoint(hover.userData.item.id);
